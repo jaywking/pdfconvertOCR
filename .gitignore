@@ -1,0 +1,13 @@
+# Generated at runtime
+_processed/
+_complete/
+logs/
+*.log
+
+# Intermediates & outputs
+*_unlocked.pdf
+*_OCR.pdf
+
+# OS/editor junk
+.DS_Store
+Thumbs.db

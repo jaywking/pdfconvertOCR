@@ -1,0 +1,100 @@
+Project Documentation: PDF Automation Script
+Last Updated: June 19, 2025
+
+1. Project Overview
+This project provides an automated workflow to process PDF files from a source directory. The primary goals of the script are:
+
+Unlock Restricted PDFs: Remove printing and copying restrictions from PDF files.
+
+Perform OCR: Add a searchable text layer to image-based PDFs or PDFs that lack one.
+
+Standardize Format: Save the processed files in a consistent, archival-friendly format (PDF/A).
+
+Organize Files: Automatically move original, processed, and temporary files to appropriate subdirectories for clean and repeatable operation.
+
+The entire process is initiated by a simple batch file (.bat), making it easy to run on demand or schedule as a task.
+
+2. Technical Evolution & Troubleshooting
+The development of this script involved several key troubleshooting stages to arrive at the current, robust solution.
+
+Stage 1: The Bullzip runonce.ini Problem
+Initial Approach: The first version of the script attempted to unlock PDFs by "re-printing" them to a new PDF using the Bullzip PDF Printer. The automation was controlled by creating a temporary runonce.ini file to specify the output path and prevent any GUI dialogs from appearing.
+
+The Problem: The Bullzip printer consistently ignored the runonce.ini file, causing the "Save As" dialog to appear and halt the automation.
+
+Troubleshooting Steps:
+
+We verified that the runonce.ini file was being created in the correct %APPDATA%\PDF Writer\Bullzip directory.
+
+We investigated Bullzip's global settings, discovering that modern versions (like 14.x) rely on "Option Sets" (or "Profiles") for automation control rather than a global "allow runonce" setting.
+
+A dedicated pdfconvertautomation Option Set was created in the Bullzip GUI, configured for silent operation.
+
+The script was updated to use the Profile=pdfconvertautomation key in the runonce.ini file.
+
+Outcome: Despite these correct configurations, the Bullzip print driver continued to ignore the settings, proving it to be an unreliable method for this server-side automation task.
+
+Stage 2: Switching to a More Reliable Tool
+The Solution: We replaced the entire printing-based unlocking mechanism with a more direct and reliable command-line tool: Ghostscript.
+
+Implementation:
+
+Bullzip and PDFtoPrinter.exe were removed as dependencies.
+
+A new function, unlock_pdf, was created to call the Ghostscript executable (gswin64c.exe) directly.
+
+The Ghostscript command -sDEVICE=pdfwrite effectively re-processes the PDF, stripping restrictions without relying on the Windows printing system.
+
+Outcome: This approach successfully and silently created unlocked versions of the PDFs, completely solving the pop-up window problem.
+
+Stage 3: The OCR "Page Already Has Text" Error
+The New Problem: After successfully unlocking the files with Ghostscript, the next step, ocrmypdf, began to fail with the error: PriorOcrFoundError: page already has text! - aborting.
+
+The Cause: The original PDFs already contained a digital text layer. Ghostscript preserved this text layer, and ocrmypdf correctly identified that it didn't need to perform OCR. By default, it treats this situation as an error to prevent accidentally damaging a good file.
+
+The Solution: The ocr_pdf function was modified to include the --skip-text argument in the ocrmypdf command. This instructs the tool to intelligently process the document, only performing OCR on pages that are pure images and leaving pages with existing text untouched.
+
+Outcome: This final change allowed the script to handle both image-based and text-based PDFs seamlessly, completing the workflow.
+
+3. System Requirements
+To run this automation, the following software must be installed and accessible in the system's PATH:
+
+Python: The script is written in Python 3.
+
+Ghostscript: Version 10.0+ (64-bit). The executable (gswin64c.exe) must be in the system PATH.
+
+OCRmyPDF: A Python-based OCR tool. It can be installed via pip install ocrmypdf.
+
+Python Libraries: The script requires PyMuPDF (fitz), which can be installed via pip install PyMuPDF.
+
+4. File Descriptions
+pdf_automation_v4.py: The main Python script that contains all the logic for finding, unlocking, OCR-ing, and moving files.
+
+launch_automation.bat (Example Name): A simple batch file used to execute the Python script. It handles changing to the correct directory and can activate a Python virtual environment if one is used.
+
+Shortcut (on Taskbar): A Windows shortcut that points to the .bat file using the cmd.exe /c "path\to\script.bat" target. This allows the batch file to be pinned to the taskbar for easy access.
+
+5. Workflow & Directory Structure
+The script operates within a defined directory structure under C:\Utils\pdfconvert:
+
+C:\Utils\pdfconvert: Source Directory. Place all new PDFs to be processed here.
+
+_processed\: Originals are moved here after they have been successfully processed and a new OCR'd version has been created.
+
+_complete\: The final, unlocked, and OCR'd PDF files are saved here. This is the primary output folder.
+
+_error\ (Optional Enhancement): If a file fails for any reason, it would be moved here to prevent it from being re-processed.
+
+logs\: Contains detailed, timestamped log files for every run, which are essential for debugging.
+
+The process flow for a single file is:
+
+A PDF is found in the source directory.
+
+If it's locked, an _unlocked.pdf temporary version is created by Ghostscript. If not, the original is used for the next step.
+
+The unlocked PDF (or the original) is passed to ocrmypdf, which creates a final _OCR.pdf file in the _complete folder.
+
+The original source PDF is moved to the _processed folder.
+
+The temporary _unlocked.pdf file (if created) is deleted.

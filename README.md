@@ -1,11 +1,14 @@
+# PDF Automation (Unlock + OCR) — v6
 
 # PDF Automation (Unlock + OCR) — v5
+A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware compression, and adds page numbers. It supports both batch processing from a working folder and a right‑click Explorer action for one or many PDFs.
 
 A Windows-friendly tool that unlocks restricted PDFs and runs OCR with size‑aware compression. It supports both batch processing from a working folder and a right‑click Explorer action for one or many PDFs.
 
 ## What it does
 - Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript (silent, no prompts).
 - Runs **OCR** with OCRmyPDF while **skipping pages that already contain text**.
+- Adds **page numbers** in "Page X of Y" format to the bottom of each page.
 - Uses compression settings that keep files reasonably small while staying readable by ChatGPT and other tools.
 - Supports two modes:
   - **Batch mode** (no arguments): scans `C:\Utils\pdfconvert` and writes results to `_complete\`, originals to `_processed\`.
@@ -27,6 +30,10 @@ pip install ocrmypdf PyMuPDF
 - `pdf_automation_v5.py` — main script (dual mode).
 - `run_pdfconvert_v5.bat` — launcher that forwards any selected files to the script.
 - `registry\add_OCR_context_template.reg` — context‑menu template. Edit the path to your BAT, then import.
+- `pdf_automation_v6.py` — main script (dual mode).
+- `run_pdfconvert_v6.bat` — launcher that forwards any selected files to the script.
+- `registry\add_OCR_context_v6.reg` — context‑menu template.
+- `registry\remove_OCR_context_v5.reg` — (optional) removes old v5 context menu.
 - `.gitignore`, `requirements.txt`.
 
 ## Quick start
@@ -34,6 +41,7 @@ pip install ocrmypdf PyMuPDF
 ### Batch mode (no arguments)
 1. Place PDFs in `C:\Utils\pdfconvert`.
 2. Run `run_pdfconvert_v5.bat` (or run `python pdf_automation_v5.py`).
+2. Run `run_pdfconvert_v6.bat` (or run `python pdf_automation_v6.py`).
 3. Results:
    - Final OCR PDFs → `C:\Utils\pdfconvert\_complete\*`
    - Originals archived → `C:\Utils\pdfconvert\_processed\*`
@@ -44,10 +52,14 @@ pip install ocrmypdf PyMuPDF
 2. Double‑click the `.reg` file to import.
 3. In Explorer, select one or many PDFs → right‑click → **Convert to OCR (v5)**.
 4. Results (per file):
+1. Double‑click `registry\add_OCR_context_v6.reg` to import it. You may need to confirm a security warning.
+2. In Explorer, select one or many PDFs → right‑click → **Convert to OCR (v6)**.
+3. Results (per file):
    - Output → `filename_OCR.pdf` next to the original
    - Original moved to `Originals\filename.pdf`
 
 **Note**: The registry template uses `MultiSelectModel="Document"` so the menu shows up even when you select more than 15 files. Explorer will invoke the command once per selected file with `%1`.
+**Note**: The registry script uses `MultiSelectModel="Document"` so the menu shows up even when you select more than 15 files. Explorer will invoke the command once per selected file with `%1`.
 
 ## How it works
 
@@ -65,6 +77,9 @@ OCR is performed with OCRmyPDF using settings that preserve text quality and red
 - `--skip-text` avoids unnecessary OCR on pages that already contain searchable text.
 - `--output-type pdf` keeps files smaller than PDF/A while remaining readable by ChatGPT.
 - `--optimize 3` and `--jpeg-quality 40` reduce image size. Lower `jpeg-quality` gives smaller files with more visible compression.
+
+### Page Numbering
+After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each page.
 
 ### Mode behavior
 - **Batch mode** writes output to `_complete\` and moves the originals to `_processed\`.

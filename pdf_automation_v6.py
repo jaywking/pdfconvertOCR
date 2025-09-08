@@ -25,6 +25,12 @@ LOG_DIR = BASE_DIR / "logs"
 GHOSTSCRIPT_EXE = "gswin64c.exe"   # Requires Ghostscript in PATH
 OCR_MY_PDF_EXE = "ocrmypdf"       # Requires OCRmyPDF in PATH
 
+# Page numbering settings
+PAGE_NUMBER_FONT = "helv"  # Helvetica
+PAGE_NUMBER_FONTSIZE = 8
+PAGE_NUMBER_Y_OFFSET = 20  # Distance from bottom of page
+PAGE_NUMBER_FORMAT = "Page {page_num} of {total_pages}"
+
 # ---------- One-time directory bootstrapping ----------
 for d in (PROCESSED_DIR, COMPLETE_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
@@ -46,6 +52,20 @@ _illegal = re.compile(r'[<>:"/\\|?*]')
 def safe_filename(name: str) -> str:
     """Strip illegal Win characters from filename stem."""
     return _illegal.sub("_", name)
+
+def check_dependencies() -> bool:
+    """Check if required command-line tools are installed and in the PATH."""
+    logging.info("🔎 Checking for dependencies...")
+    ok = True
+    for exe in (GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE):
+        if shutil.which(exe):
+            logging.info(f"  ✅ Found {exe}")
+        else:
+            logging.error(f"  ❌ Missing dependency: {exe} is not in your system's PATH.")
+            ok = False
+    if not ok:
+        logging.error("Please install the missing dependencies and ensure they are in your PATH.")
+    return ok
 
 def is_pdf_locked(path: Path) -> bool:
     """Return True if print/copy is restricted or PDF is encrypted."""
@@ -106,9 +126,16 @@ def add_page_numbers(pdf_path: Path) -> bool:
         doc = fitz.open(str(pdf_path))
         for i, page in enumerate(doc):
             # Define the rectangle for the page number at the bottom center
-            footer_rect = fitz.Rect(0, page.rect.height - 20, page.rect.width, page.rect.height)
-            page_text = f"Page {i + 1} of {len(doc)}"
-            page.insert_textbox(footer_rect, page_text, fontsize=8, fontname="helv", align=fitz.TEXT_ALIGN_CENTER, color=(0,0,0))
+            footer_rect = fitz.Rect(0, page.rect.height - PAGE_NUMBER_Y_OFFSET, page.rect.width, page.rect.height)
+            page_text = PAGE_NUMBER_FORMAT.format(page_num=i + 1, total_pages=len(doc))
+            page.insert_textbox(
+                footer_rect,
+                page_text,
+                fontsize=PAGE_NUMBER_FONTSIZE,
+                fontname=PAGE_NUMBER_FONT,
+                align=fitz.TEXT_ALIGN_CENTER,
+                color=(0, 0, 0),  # Black
+            )
         # Saving to a new file is more robust than overwriting, especially after OCRmyPDF.
         doc.save(str(numbered_pdf_path), garbage=4, deflate=True, clean=True)
         doc.close()
@@ -143,7 +170,8 @@ def _process_one_pdf(
 
         ocr_pdf(str(work_file), str(final_ocr_pdf))
 
-        add_page_numbers(final_ocr_pdf)
+        if not add_page_numbers(final_ocr_pdf):
+            logging.warning(f"Could not add page numbers to {final_ocr_pdf.name}, but continuing.")
 
         archive_dir.mkdir(parents=True, exist_ok=True)
         shutil.move(source_path, archive_dir / source_path.name)
@@ -185,6 +213,10 @@ def process_batch() -> None:
 # ---------- Main dispatcher ----------
 def main() -> None:
     logging.info("🚀 PDF Automation start (v6)")
+
+    if not check_dependencies():
+        return  # Exit if dependencies are not met
+
     args = sys.argv[1:]
     pdf_args = [Path(p) for p in args if p.lower().endswith(".pdf")]
 

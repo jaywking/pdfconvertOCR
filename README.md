@@ -1,9 +1,6 @@
 # PDF Automation (Unlock + OCR) — v6
 
-# PDF Automation (Unlock + OCR) — v5
 A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware compression, and adds page numbers. It supports both batch processing from a working folder and a right‑click Explorer action for one or many PDFs.
-
-A Windows-friendly tool that unlocks restricted PDFs and runs OCR with size‑aware compression. It supports both batch processing from a working folder and a right‑click Explorer action for one or many PDFs.
 
 ## What it does
 - Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript (silent, no prompts).
@@ -27,20 +24,15 @@ pip install ocrmypdf PyMuPDF
 ```
 
 ## Files in this repo
-- `pdf_automation_v5.py` — main script (dual mode).
-- `run_pdfconvert_v5.bat` — launcher that forwards any selected files to the script.
-- `registry\add_OCR_context_template.reg` — context‑menu template. Edit the path to your BAT, then import.
 - `pdf_automation_v6.py` — main script (dual mode).
 - `run_pdfconvert_v6.bat` — launcher that forwards any selected files to the script.
 - `registry\add_OCR_context_v6.reg` — context‑menu template.
-- `registry\remove_OCR_context_v5.reg` — (optional) removes old v5 context menu.
-- `.gitignore`, `requirements.txt`.
+- `remove_OCR_context_v5.reg` — (optional) removes old v5 context menu.
 
 ## Quick start
 
 ### Batch mode (no arguments)
 1. Place PDFs in `C:\Utils\pdfconvert`.
-2. Run `run_pdfconvert_v5.bat` (or run `python pdf_automation_v5.py`).
 2. Run `run_pdfconvert_v6.bat` (or run `python pdf_automation_v6.py`).
 3. Results:
    - Final OCR PDFs → `C:\Utils\pdfconvert\_complete\*`
@@ -48,17 +40,12 @@ pip install ocrmypdf PyMuPDF
    - Logs → `C:\Utils\pdfconvert\logs\*`
 
 ### Right‑click in Explorer (one or many PDFs)
-1. Open `registry\add_OCR_context_template.reg` in a text editor and set the full path to your `run_pdfconvert_v5.bat`.
-2. Double‑click the `.reg` file to import.
-3. In Explorer, select one or many PDFs → right‑click → **Convert to OCR (v5)**.
-4. Results (per file):
 1. Double‑click `registry\add_OCR_context_v6.reg` to import it. You may need to confirm a security warning.
 2. In Explorer, select one or many PDFs → right‑click → **Convert to OCR (v6)**.
 3. Results (per file):
    - Output → `filename_OCR.pdf` next to the original
    - Original moved to `Originals\filename.pdf`
 
-**Note**: The registry template uses `MultiSelectModel="Document"` so the menu shows up even when you select more than 15 files. Explorer will invoke the command once per selected file with `%1`.
 **Note**: The registry script uses `MultiSelectModel="Document"` so the menu shows up even when you select more than 15 files. Explorer will invoke the command once per selected file with `%1`.
 
 ## How it works

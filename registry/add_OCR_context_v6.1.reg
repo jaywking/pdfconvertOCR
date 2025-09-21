@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1]
+@="Convert to OCR (v6.1)"
+"Icon"="C:\\Windows\\System32\\imageres.dll,-5302"
+"MultiSelectModel"="Document"
+
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command]
+@=""C:\\Utils\\pdfconvert\\run_pdfconvert_v6.1.bat" "%1""

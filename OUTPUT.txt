@@ -1,0 +1,112 @@
+Processing file: "C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008.pdf"
+2025-10-09 10:40:31,628 - INFO - 🚀 PDF Automation start (v6)
+2025-10-09 10:40:31,628 - INFO - 🔎 Checking for dependencies...
+2025-10-09 10:40:31,630 - INFO -   ✅ Found Ghostscript in PATH: C:\Program Files\gs\gs10.05.0\bin\gswin64c.exe
+2025-10-09 10:40:31,634 - INFO -   ✅ Found OCRmyPDF in PATH: C:\Users\jaywk\AppData\Roaming\Python\Python312\Scripts\ocrmypdf.exe
+2025-10-09 10:40:31,634 - INFO - Single-file mode on: C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008.pdf
+2025-10-09 10:40:31,636 - INFO - 🔓 Unlocking via Ghostscript: C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008.pdf
+2025-10-09 10:40:32,177 - INFO - ✅ Unlock complete
+2025-10-09 10:40:32,177 - INFO - 🔍 OCR start: C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008_unlocked.pdf
+Scanning contents     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 87/87 0:00:00
+Start processing 16 pages concurrently                                                                         ocr.py:96
+    1 skipping all processing on this page                                                              _pipeline.py:343
+    2 skipping all processing on this page                                                              _pipeline.py:343
+    3 skipping all processing on this page                                                              _pipeline.py:343
+    4 skipping all processing on this page                                                              _pipeline.py:343
+    5 skipping all processing on this page                                                              _pipeline.py:343
+    6 skipping all processing on this page                                                              _pipeline.py:343
+    7 skipping all processing on this page                                                              _pipeline.py:343
+    8 skipping all processing on this page                                                              _pipeline.py:343
+    9 skipping all processing on this page                                                              _pipeline.py:343
+   10 skipping all processing on this page                                                              _pipeline.py:343
+   11 skipping all processing on this page                                                              _pipeline.py:343
+   12 skipping all processing on this page                                                              _pipeline.py:343
+   13 skipping all processing on this page                                                              _pipeline.py:343
+   14 skipping all processing on this page                                                              _pipeline.py:343
+   15 skipping all processing on this page                                                              _pipeline.py:343
+   16 skipping all processing on this page                                                              _pipeline.py:343
+   17 skipping all processing on this page                                                              _pipeline.py:343
+   18 skipping all processing on this page                                                              _pipeline.py:343
+   19 skipping all processing on this page                                                              _pipeline.py:343
+   20 skipping all processing on this page                                                              _pipeline.py:343
+   21 skipping all processing on this page                                                              _pipeline.py:343
+   22 skipping all processing on this page                                                              _pipeline.py:343
+   23 skipping all processing on this page                                                              _pipeline.py:343
+   24 skipping all processing on this page                                                              _pipeline.py:343
+   25 skipping all processing on this page                                                              _pipeline.py:343
+   26 skipping all processing on this page                                                              _pipeline.py:343
+   27 skipping all processing on this page                                                              _pipeline.py:343
+   28 skipping all processing on this page                                                              _pipeline.py:343
+   29 skipping all processing on this page                                                              _pipeline.py:343
+   30 skipping all processing on this page                                                              _pipeline.py:343
+   31 skipping all processing on this page                                                              _pipeline.py:343
+   32 skipping all processing on this page                                                              _pipeline.py:343
+   33 skipping all processing on this page                                                              _pipeline.py:343
+   34 skipping all processing on this page                                                              _pipeline.py:343
+   35 skipping all processing on this page                                                              _pipeline.py:343
+   36 skipping all processing on this page                                                              _pipeline.py:343
+   37 skipping all processing on this page                                                              _pipeline.py:343
+   38 skipping all processing on this page                                                              _pipeline.py:343
+   39 skipping all processing on this page                                                              _pipeline.py:343
+   40 skipping all processing on this page                                                              _pipeline.py:343
+   41 skipping all processing on this page                                                              _pipeline.py:343
+   42 skipping all processing on this page                                                              _pipeline.py:343
+   43 skipping all processing on this page                                                              _pipeline.py:343
+   44 skipping all processing on this page                                                              _pipeline.py:343
+   45 skipping all processing on this page                                                              _pipeline.py:343
+   46 skipping all processing on this page                                                              _pipeline.py:343
+   47 skipping all processing on this page                                                              _pipeline.py:343
+   48 skipping all processing on this page                                                              _pipeline.py:343
+   49 skipping all processing on this page                                                              _pipeline.py:343
+   50 skipping all processing on this page                                                              _pipeline.py:343
+   51 skipping all processing on this page                                                              _pipeline.py:343
+   52 skipping all processing on this page                                                              _pipeline.py:343
+   53 skipping all processing on this page                                                              _pipeline.py:343
+   54 skipping all processing on this page                                                              _pipeline.py:343
+   55 skipping all processing on this page                                                              _pipeline.py:343
+   56 skipping all processing on this page                                                              _pipeline.py:343
+   57 skipping all processing on this page                                                              _pipeline.py:343
+   58 skipping all processing on this page                                                              _pipeline.py:343
+   59 skipping all processing on this page                                                              _pipeline.py:343
+   60 skipping all processing on this page                                                              _pipeline.py:343
+   61 skipping all processing on this page                                                              _pipeline.py:343
+   77 skipping all processing on this page                                                              _pipeline.py:343
+   63 skipping all processing on this page                                                              _pipeline.py:343
+   64 skipping all processing on this page                                                              _pipeline.py:343
+   65 skipping all processing on this page                                                              _pipeline.py:343
+   66 skipping all processing on this page                                                              _pipeline.py:343
+   67 skipping all processing on this page                                                              _pipeline.py:343
+   68 skipping all processing on this page                                                              _pipeline.py:343
+   69 skipping all processing on this page                                                              _pipeline.py:343
+   70 skipping all processing on this page                                                              _pipeline.py:343
+   71 skipping all processing on this page                                                              _pipeline.py:343
+   72 skipping all processing on this page                                                              _pipeline.py:343
+   73 skipping all processing on this page                                                              _pipeline.py:343
+   74 skipping all processing on this page                                                              _pipeline.py:343
+   75 skipping all processing on this page                                                              _pipeline.py:343
+   76 skipping all processing on this page                                                              _pipeline.py:343
+   62 skipping all processing on this page                                                              _pipeline.py:343
+   78 skipping all processing on this page                                                              _pipeline.py:343
+   79 skipping all processing on this page                                                              _pipeline.py:343
+   80 skipping all processing on this page                                                              _pipeline.py:343
+   81 skipping all processing on this page                                                              _pipeline.py:343
+   82 skipping all processing on this page                                                              _pipeline.py:343
+   83 skipping all processing on this page                                                              _pipeline.py:343
+   84 skipping all processing on this page                                                              _pipeline.py:343
+   85 skipping all processing on this page                                                              _pipeline.py:343
+   86 skipping all processing on this page                                                              _pipeline.py:343
+   87 skipping all processing on this page                                                              _pipeline.py:343
+OCR                   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 87/87 0:00:00
+Postprocessing...                                                                                             ocr.py:144
+Linearizing           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 100/100 0:00:00
+Recompressing JPEGs   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% 0/0 -:--:--
+Deflating JPEGs       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% 0/0 -:--:--
+PNGs                  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% 0/0 -:--:--
+JBIG2                 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% 0/0 -:--:--
+Image optimization ratio: 1.00 savings: 0.3%                                                           _pipeline.py:1002
+Total file size ratio: 1.05 savings: 5.1%                                                              _pipeline.py:1005
+2025-10-09 10:40:34,906 - INFO - ✅ OCR output: C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008_OCR.pdf
+2025-10-09 10:40:34,906 - INFO - 🔢 Adding page numbers to IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008_OCR.pdf
+2025-10-09 10:40:35,200 - INFO - 📦 Original 'IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008.pdf' moved to C:\Users\jaywk\OneDrive - Above the Line Safety\IPR\Schedules\Originals\Originals
+2025-10-09 10:40:35,200 - INFO - 🧹 Cleaned up intermediate file: IPR_OFFICIAL PRODUCTION MEETING Shooting Schedule_251008_unlocked.pdf
+2025-10-09 10:40:35,202 - INFO - 🏁 Finished

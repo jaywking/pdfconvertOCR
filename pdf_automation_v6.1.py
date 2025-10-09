@@ -130,7 +130,7 @@ def unlock_pdf(src: str, dst: str) -> None:
         raise
 
 def ocr_pdf(src: str, dst: str) -> None:
-    """Run OCRmyPDF with size-optimized settings and live progress."""
+    """Run OCRmyPDF with size-optimized settings and clear logging."""
     cmd = [
         OCR_MY_PDF_EXE,
         "--skip-text",          # only pages without text
@@ -141,19 +141,26 @@ def ocr_pdf(src: str, dst: str) -> None:
         "--deskew",
         src, dst
     ]
-    logging.info(f"🔍 OCR start: {src}")
+    logging.info(f"🔍 Starting OCR step for: {Path(src).name}")
     try:
-        # Run with live output to the console, but not to the log file.
-        # If it fails, we re-run with captured output for logging.
-        subprocess.run(cmd, check=True, encoding='utf-8', timeout=OCR_TIMEOUT_SECS)
-        logging.info(f"✅ OCR output: {dst}")
+        # Run the command and capture all output.
+        result = subprocess.run(
+            cmd, check=True, capture_output=True, text=True, 
+            encoding='utf-8', timeout=OCR_TIMEOUT_SECS
+        )
+        # Check the output to see if OCR was skipped.
+        if "skipping all processing" in result.stdout:
+            logging.info("✅ PDF is already searchable. OCR not required.")
+        else:
+            logging.info("✅ OCR completed successfully.")
+        logging.info(f"✅ OCR output generated: {Path(dst).name}")
+
     except subprocess.CalledProcessError as e:
-        # Re-run with captured output to log the error details
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        logging.error(f"❌ OCRmyPDF failed on {src}.\n" 
-                      f"   Return Code: {result.returncode}\n" 
-                      f"   STDOUT: {result.stdout}\n" 
-                      f"   STDERR: {result.stderr}")
+        # Log the full error details if the process fails.
+        logging.error(f"❌ OCRmyPDF failed on {Path(src).name}.\n" 
+                      f"   Return Code: {e.returncode}\n" 
+                      f"   STDOUT: {e.stdout}\n" 
+                      f"   STDERR: {e.stderr}")
         raise
 
 def add_page_numbers(pdf_path: Path) -> bool:

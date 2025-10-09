@@ -1,102 +1,65 @@
 # PDF Automation (Unlock + OCR) — v6.1
 
-A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware compression, and adds page numbers. It supports both batch processing from a working folder and a right‑click Explorer action for one or many PDFs.
-
-## What's New in v6.1
-- **Auto-detection of dependencies**: The script now automatically searches for `gswin64c.exe` and `ocrmypdf.exe` in common installation directories, so you don't need to have them in your system's PATH.
-- **Live OCR Progress**: The `ocrmypdf` progress bar is now displayed live in the terminal.
-- **Improved Font Handling**: If the preferred "helv" font is not found for page numbering, the script now automatically falls back to a default font to avoid crashes.
-- **Configurable Timeouts**: Timeouts for Ghostscript and OCRmyPDF are now configurable at the top of the script.
+A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware compression, and adds page numbers. It supports both batch processing and a right-click Explorer action.
 
 ## What it does
-- Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript (silent, no prompts).
-- Runs **OCR** with OCRmyPDF while **skipping pages that already contain text**.
+- Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript.
+- Runs **OCR** with OCRmyPDF, intelligently **skipping pages that already contain text**.
 - Adds **page numbers** in "Page X of Y" format to the bottom of each page.
-- Uses compression settings that keep files reasonably small while staying readable by ChatGPT and other tools.
+- Uses compression settings that keep file sizes reasonable.
 - Supports two modes:
-  - **Batch mode** (no arguments): scans `C:\Utils\pdfconvert` and writes results to `_complete\`, originals to `_processed\`.
-  - **Right‑click mode** (Explorer): processes selected PDFs **in place**, writes `*_OCR.pdf` next to each original, and moves each original into an `Originals\` subfolder.
+  - **Right‑click mode** (Explorer): Processes selected PDFs **in place**, creates a new `*_OCR.pdf` file, and moves the original into an `Originals\` subfolder. This is the primary intended use.
+  - **Batch mode** (manual): Running the script without arguments scans the root folder, writes results to `_complete\`, and moves originals to `_processed\`.
 
 ## Requirements
 - Windows 10 or 11
 - Python 3.x
-- **Ghostscript**
-- **Tesseract OCR** (used by OCRmyPDF)
-- Python packages: **OCRmyPDF**, **PyMuPDF**
+- **Ghostscript**: Must be installed and accessible via the system's PATH.
+- **Tesseract OCR**: Must be installed as it is a dependency for OCRmyPDF.
+- Python packages as defined in `requirements.txt`.
 
-Install Python packages:
+Install required Python packages:
 ```bat
-pip install ocrmypdf PyMuPDF
+pip install -r requirements.txt
 ```
 
-## Files in this repo
-- `pdf_automation_v6.1.py` — main script (dual mode).
-- `run_pdfconvert_v6.1.bat` — launcher that forwards any selected files to the script.
-- `registry\add_OCR_context_v6.1.reg` — context‑menu template.
-- `remove_OCR_context_v6.reg` — (optional) removes old v6 context menu.
+## Setup & Usage (Right-Click Method)
 
-## Quick start
+This is the recommended way to use the tool.
 
-### Batch mode (no arguments)
-1. Place PDFs in `C:\Utils\pdfconvert`.
-2. Run `run_pdfconvert_v6.1.bat` (or run `python pdf_automation_v6.1.py`).
-3. Results:
-   - Final OCR PDFs → `C:\Utils\pdfconvert\_complete\*`
-   - Originals archived → `C:\Utils\pdfconvert\_processed\*`
-   - Logs → `C:\Utils\pdfconvert\logs\*`
+1.  **Install Dependencies**: Make sure Ghostscript and Tesseract are installed on your system.
+2.  **Add Context Menu**: Navigate to the `registry` folder and double‑click `add_OCR_context_v6.1.reg`. You will need to approve the security prompt. This adds the "Convert to OCR (v6.1)" option to your right-click menu for PDF files.
+3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.1)**.
+4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory, and the original file will be moved into a new `Originals` subfolder.
 
-### Right‑click in Explorer (one or many PDFs)
-1. Double‑click `registry\add_OCR_context_v6.1.reg` to import it. You may need to confirm a security warning.
-2. In Explorer, select one or many PDFs → right‑click → **Convert to OCR (v6.1)**.
-3. Results (per file):
-   - Output → `filename_OCR.pdf` next to the original
-   - Original moved to `Originals\filename.pdf`
+## Core Files
+- `pdf_automation_v6.1.py`: The main Python script containing all the logic.
+- `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
+- `registry/add_OCR_context_v6.1.reg`: The registry file for creating the right-click context menu item.
+- `archives/`: Contains archived scripts and logs from previous versions.
 
-**Note**: The registry script uses `MultiSelectModel="Document"` so the menu shows up even when you select more than 15 files. Explorer will invoke the command once per selected file with `%1`.
+## How it Works
 
-## How it works
-
-### Unlock check
+### Unlock Check
 The script opens the PDF with PyMuPDF and checks permissions for printing and copying. If restricted, it creates an unrestricted copy with Ghostscript:
 ```
 gswin64c.exe -o unlocked.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/default input.pdf
 ```
 
-### OCR with compression
+### OCR with Compression
 OCR is performed with OCRmyPDF using settings that preserve text quality and reduce size:
 ```
---skip-text --optimize 3 --jpeg-quality 40 --remove-background --output-type pdf --deskew
+ocrmypdf.exe --skip-text --optimize 3 --jpeg-quality 40 --remove-background --output-type pdf --deskew input.pdf output.pdf
 ```
 - `--skip-text` avoids unnecessary OCR on pages that already contain searchable text.
-- `--output-type pdf` keeps files smaller than PDF/A while remaining readable by ChatGPT.
-- `--optimize 3` and `--jpeg-quality 40` reduce image size. Lower `jpeg-quality` gives smaller files with more visible compression.
+- `--optimize 3` and `--jpeg-quality 40` reduce image size.
 
 ### Page Numbering
 After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each page.
 
-### Mode behavior
-- **Batch mode** writes output to `_complete\` and moves the originals to `_processed\`.
-- **Right‑click mode** writes output next to each original and moves each original to an `Originals\` subfolder inside the same directory.
-
-## Configuration
-- Default working folder: `C:\Utils\pdfconvert`. Change `BASE_DIR` in the script if you prefer a different location.
-- The script will attempt to auto-detect Ghostscript and OCRmyPDF. If this fails, you can manually set the paths to `gswin64c.exe` and `ocrmypdf.exe` in the script.
-
 ## Troubleshooting
-- **Menu disappears when selecting many files**: ensure the registry entry includes `MultiSelectModel="Document"` and the command uses `%1` (Explorer runs the command once per file).
-- **File not detected in batch mode**: if using OneDrive Files On‑Demand, right‑click the file in Explorer and select **Always keep on this device**, then try again.
-- **ChatGPT says “No text can be extracted from this file”**: re‑OCR with a fresh text layer:
+- **Script fails silently**: The most common cause is a missing dependency. Ensure both Ghostscript and Tesseract are installed and their paths are correctly configured in your system's environment variables.
+- **ChatGPT says “No text can be extracted”**: For a stubborn file, you can force re-OCR on every page with this manual command, though it may increase file size:
   ```bat
-ocrmypdf --force-ocr --output-type pdf "input.pdf" "fixed.pdf"
+  ocrmypdf --force-ocr --output-type pdf "input.pdf" "fixed.pdf"
   ```
-  This increases size, so run your normal pipeline again afterward to apply compression if needed.
-- **Ghostscript not found**: If auto-detection fails, install Ghostscript and verify `gswin64c.exe` is in your PATH, or update `GHOSTSCRIPT_EXE` in the script.
-- **Tesseract not found**: install Tesseract and ensure it is in PATH. OCRmyPDF depends on it.
-
-## Size tips
-If output is still larger than you like, try:
-- Lowering `--jpeg-quality` to `35` or `30` (trade‑off: more visible compression).
-- Keeping `--output-type pdf` instead of PDF/A. Use PDF/A only when archival compliance is required.
-
-## License
-Choose a license for the repository (MIT is common for utility scripts). Add it as `LICENSE` in the repo root.

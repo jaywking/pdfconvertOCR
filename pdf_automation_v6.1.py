@@ -139,8 +139,6 @@ def ocr_pdf(src: str, dst: str) -> None:
         "--remove-background",
         "--output-type", "pdf",
         "--deskew",
-        # Force progress bar to clean up after itself
-        "--force-ocr", "-v", "1", "--progress-bar", "tqdm",
         src, dst
     ]
     logging.info(f"🔍 OCR start: {src}")

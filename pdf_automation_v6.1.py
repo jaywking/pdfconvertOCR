@@ -136,7 +136,6 @@ def ocr_pdf(src: str, dst: str) -> None:
         "--skip-text",          # only pages without text
         "--optimize", "3",
         "--jpeg-quality", "40",
-        "--remove-background",
         "--output-type", "pdf",
         "--deskew",
         src, dst

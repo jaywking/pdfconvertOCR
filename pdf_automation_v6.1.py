@@ -11,6 +11,9 @@ import shutil
 import subprocess
 import logging
 import re
+import tempfile
+import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 import fitz  # PyMuPDF
@@ -129,38 +132,47 @@ def unlock_pdf(src: str, dst: str) -> None:
                       f"   STDERR: {e.stderr}")
         raise
 
-def ocr_pdf(src: str, dst: str) -> None:
+
+
+
+
+def ocr_pdf(src: str, dst: str) -> tuple[bool, str | None]:
     """Run OCRmyPDF with size-optimized settings and clear logging."""
     cmd = [
         OCR_MY_PDF_EXE,
-        "--skip-text",          # only pages without text
+        "--force-ocr",          # re-OCR every page to ensure a clean text layer
         "--optimize", "3",
-        "--jpeg-quality", "40",
-        "--output-type", "pdf",
+        "--jpeg-quality", "85",
+        "--output-type", "pdfa-2",
         "--deskew",
-        src, dst
+        src, dst,
     ]
-    logging.info(f"🔍 Starting OCR step for: {Path(src).name}")
+    logging.info(f"Starting OCR step for: {Path(src).name}")
     try:
-        # Run the command and capture all output.
         result = subprocess.run(
-            cmd, check=True, capture_output=True, text=True, 
-            encoding='utf-8', timeout=OCR_TIMEOUT_SECS
+            cmd, check=True, capture_output=True, text=True,
+            encoding='utf-8', timeout=OCR_TIMEOUT_SECS,
         )
-        # Check the output to see if OCR was skipped.
         if "skipping all processing" in result.stdout:
-            logging.info("✅ PDF is already searchable. OCR not required.")
+            logging.info("PDF is already searchable. OCR not required.")
         else:
-            logging.info("✅ OCR completed successfully.")
-        logging.info(f"✅ OCR output generated: {Path(dst).name}")
-
+            logging.info("OCR completed successfully.")
+        logging.info(f"OCR output generated: {Path(dst).name}")
+        return True, None
     except subprocess.CalledProcessError as e:
-        # Log the full error details if the process fails.
-        logging.error(f"❌ OCRmyPDF failed on {Path(src).name}.\n" 
-                      f"   Return Code: {e.returncode}\n" 
-                      f"   STDOUT: {e.stdout}\n" 
-                      f"   STDERR: {e.stderr}")
-        raise
+        cmdline = subprocess.list2cmdline(cmd)
+        logging.error(
+            "OCRmyPDF failed on %s.\n   Command: %s\n   Return Code: %s\n   STDOUT: %s\n   STDERR: %s",
+            Path(src).name,
+            cmdline,
+            e.returncode,
+            e.stdout,
+            e.stderr,
+        )
+        return False, f"OCR failed (rc={e.returncode})"
+    except Exception as exc:
+        logging.error("OCRmyPDF unexpected failure on %s: %s", Path(src).name, exc)
+        return False, str(exc)
 
 def add_page_numbers(pdf_path: Path) -> bool:
     """Adds 'Page X of Y' to the bottom center of each page."""
@@ -204,46 +216,128 @@ def add_page_numbers(pdf_path: Path) -> bool:
             numbered_pdf_path.unlink()
         return False
 
+
+
+def archive_original(src: Path, archive_dir: Path) -> Path:
+    """Move the original PDF into the archive with a unique, deterministic name."""
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique = uuid.uuid4().hex[:8]
+    dest = archive_dir / f"{safe_filename(src.stem)}_{timestamp}_{unique}{src.suffix}"
+    return Path(shutil.move(src, dest))
+
 # ---------- Core Processing Logic ----------
+
+
 def _process_one_pdf(
     source_path: Path,
     output_dir: Path,
     archive_dir: Path,
     temp_dir: Path,
+    results: list[dict] | None = None,
 ) -> None:
     """Core logic to unlock, OCR, and archive a single PDF."""
-    stem = safe_filename(source_path.stem)
-    unlocked_pdf = temp_dir / f"{stem}_unlocked.pdf"
-    final_ocr_pdf = output_dir / f"{stem}_OCR.pdf"
+    start_time = time.monotonic()
+    success = False
+    error: str | None = None
+    pages: int | None = None
+    unlocked = False
 
-    work_file = source_path
-    try:
-        if is_pdf_locked(source_path):
-            unlock_pdf(str(source_path), str(unlocked_pdf))
-            work_file = unlocked_pdf
-        else:
-            logging.info(f"PDF '{source_path.name}' not locked; skipping unlock step")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=temp_dir) as tmp_dir:
+        stem = safe_filename(source_path.stem)
+        unlocked_pdf = Path(tmp_dir) / f"{stem}_unlocked.pdf"
+        final_ocr_pdf = output_dir / f"{stem}_OCR.pdf"
 
-        ocr_pdf(str(work_file), str(final_ocr_pdf))
+        work_file = source_path
+        try:
+            if is_pdf_locked(source_path):
+                unlock_pdf(str(source_path), str(unlocked_pdf))
+                work_file = unlocked_pdf
+                unlocked = True
+            else:
+                logging.info(f"PDF '{source_path.name}' not locked; skipping unlock step")
 
-        if not add_page_numbers(final_ocr_pdf):
-            logging.warning(f"Could not add page numbers to {final_ocr_pdf.name}, but continuing.")
+            ocr_ok, ocr_err = ocr_pdf(str(work_file), str(final_ocr_pdf))
+            if not ocr_ok:
+                error = ocr_err or "OCR failed"
+                logging.error(f"OCR step failed for {source_path.name}: {error}")
+                if final_ocr_pdf.exists():
+                    final_ocr_pdf.unlink()
+                return
 
-        archive_dir.mkdir(parents=True, exist_ok=True)
-        shutil.move(source_path, archive_dir / source_path.name)
-        logging.info(f"📦 Original '{source_path.name}' moved to {archive_dir}")
+            if not add_page_numbers(final_ocr_pdf):
+                logging.warning(f"Could not add page numbers to {final_ocr_pdf.name}, but continuing.")
 
-    finally:
-        if unlocked_pdf.exists():
-            unlocked_pdf.unlink()
-            logging.info(f"🧹 Cleaned up intermediate file: {unlocked_pdf.name}")
+            try:
+                with fitz.open(str(final_ocr_pdf)) as doc:
+                    pages = len(doc)
+            except Exception as exc:
+                logging.warning(f"Could not count pages for {final_ocr_pdf.name}: {exc}")
+
+            archived_path = archive_original(source_path, archive_dir)
+            logging.info(f"Original '{source_path.name}' moved to {archived_path.parent}")
+            success = True
+        except Exception as exc:
+            error = str(exc)
+            logging.error(f"Failed on {source_path.name}: {exc}")
+        finally:
+            duration = time.monotonic() - start_time
+            status_label = "OK" if success else "FAIL"
+            logging.info(
+                f"Summary [{status_label}] {source_path.name} | pages={pages if pages is not None else '?'} | "
+                f"unlocked={'yes' if unlocked else 'no'} | time={duration:.1f}s"
+            )
+            if results is not None:
+                results.append(
+                    {
+                        "file": source_path.name,
+                        "status": "ok" if success else "failed",
+                        "pages": pages,
+                        "duration_s": duration,
+                        "unlocked": unlocked,
+                        "error": error,
+                    }
+                )
+
+
+
+def log_run_summary(results: list[dict]) -> None:
+    """Log a concise summary for a run."""
+    if not results:
+        return
+    total = len(results)
+    failures = [r for r in results if r.get("status") != "ok"]
+    logging.info(
+        "Run summary: %s file(s) | succeeded=%s | failed=%s",
+        total,
+        total - len(failures),
+        len(failures),
+    )
+    for r in results:
+        err_text = f" | error={r['error']}" if r.get('error') else ""
+        pages = r.get("pages")
+        logging.info(
+            "  [%s] %s | pages=%s | unlocked=%s | time=%.1fs%s",
+            r.get("status", "?").upper(),
+            r.get("file", ""),
+            pages if pages is not None else "?",
+            "yes" if r.get("unlocked") else "no",
+            r.get("duration_s", 0.0),
+            err_text,
+        )
 
 # ---------- Mode-specific Wrappers ----------
+
+
 def process_single(file_path: Path) -> None:
     """Process one PDF in place and archive original."""
     base_dir = file_path.parent
     originals = base_dir / "Originals"
-    _process_one_pdf(file_path, base_dir, originals, base_dir)
+    results: list[dict] = []
+    _process_one_pdf(file_path, base_dir, originals, base_dir, results)
+    log_run_summary(results)
+
 
 def process_batch() -> None:
     """Process all PDFs inside SOURCE_DIR."""
@@ -254,17 +348,19 @@ def process_batch() -> None:
     pdfs = list(SOURCE_DIR.glob("*.pdf"))
 
     if not pdfs:
-        logging.info("No PDFs found – nothing to do.")
+        logging.info("No PDFs found - nothing to do.")
         return
 
     logging.info(f"Found {len(pdfs)} PDF(s): {[p.name for p in pdfs]}")
 
+    results: list[dict] = []
     for idx, path in enumerate(pdfs, 1):
-        logging.info(f"▶ [{idx}/{len(pdfs)}] {path.name}")
+        logging.info(f"[{idx}/{len(pdfs)}] {path.name}")
         try:
-            _process_one_pdf(path, COMPLETE_DIR, PROCESSED_DIR, SOURCE_DIR)
+            _process_one_pdf(path, COMPLETE_DIR, PROCESSED_DIR, SOURCE_DIR, results)
         except Exception as exc:
-            logging.error(f"❌ Failed on {path.name}: {exc}")
+            logging.error(f"Failed on {path.name}: {exc}")
+    log_run_summary(results)
 
 # ---------- Main dispatcher ----------
 def main() -> None:

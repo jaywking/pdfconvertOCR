@@ -11,3 +11,9 @@ logs/
 # OS/editor junk
 .DS_Store
 Thumbs.db
+
+# Python environment and caches
+venv/
+.venv/
+__pycache__/
+*.pyc

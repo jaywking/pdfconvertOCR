@@ -17,6 +17,7 @@ A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware
 - **Ghostscript**: Must be installed and accessible via the system's PATH.
 - **Tesseract OCR**: Must be installed as it is a dependency for OCRmyPDF.
 - Python packages as defined in `requirements.txt`.
+- Use the project virtual environment (`C:\Utils\pdfconvert\venv`) when running the script.
 
 Install required Python packages:
 ```bat
@@ -47,13 +48,17 @@ gswin64c.exe -o unlocked.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/default input.pdf
 ```
 
 ### OCR with Compression
-OCR is performed with OCRmyPDF using settings that preserve text quality and reduce size while producing standardized PDF/A-2 output:
+OCR is performed with OCRmyPDF using settings that preserve text quality and reduce size:
 ```
-ocrmypdf.exe --force-ocr --optimize 3 --jpeg-quality 85 --output-type pdfa-2 --deskew input.pdf output.pdf
+ocrmypdf.exe --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --deskew input.pdf output.pdf
 ```
-- `--force-ocr` ensures every page gets a fresh text layer (avoids keeping bad or partial layers).
-- `--optimize 3` and `--jpeg-quality 85` balance size and quality (raise/lower quality if needed).
-- `--output-type pdfa-2` emits a standardized, searchable PDF.
+- `--skip-text` OCRs only pages that do not already have text.
+- `--optimize 3` and `--jpeg-quality 40` prioritize smaller output size.
+- `--output-type pdf` writes standard searchable PDF output.
+
+### Dependency Resolution
+- The script now prefers `ocrmypdf.exe` from the **active Python environment** first (for example `venv\Scripts\ocrmypdf.exe`) before searching system PATH.
+- This prevents global/user Python package conflicts from breaking OCR when the project venv is healthy.
 
 ### Page Numbering
 After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each page.
@@ -64,8 +69,14 @@ After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each pag
 
 ## Troubleshooting
 - **Script fails silently**: The most common cause is a missing dependency. Ensure both Ghostscript and Tesseract are installed and their paths are correctly configured in your system's environment variables.
+- **`SystemError` about `pydantic-core` incompatibility**:
+  - Cause: A global/user `ocrmypdf` install is loading mismatched `pydantic` and `pydantic-core` versions.
+  - Fix: Run using the project venv (the script now prefers this automatically), or repair global packages:
+  ```bat
+  python -m pip install --upgrade --force-reinstall "pydantic==2.12.5" "pydantic-core==2.41.5"
+  ```
 - **ChatGPT says "No text can be extracted"**: For a stubborn file, you can force re-OCR on every page with this manual command, though it may increase file size:
   ```bat
-  ocrmypdf --force-ocr --output-type pdfa-2 "input.pdf" "fixed.pdf"
+  ocrmypdf --force-ocr --output-type pdf "input.pdf" "fixed.pdf"
   ```
 - **Want to tweak quality**: Adjust `--jpeg-quality` (e.g., 75 for smaller files or 95 for higher quality).

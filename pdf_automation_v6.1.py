@@ -95,7 +95,15 @@ def check_dependencies() -> bool:
     ]
 
     GHOSTSCRIPT_EXE = find_executable("gswin64c.exe", "Ghostscript", gs_paths)
-    OCR_MY_PDF_EXE = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
+
+    # Prefer OCRmyPDF from the active Python environment to avoid PATH collisions
+    # (e.g., global/user installs shadowing this project's venv).
+    env_ocr = Path(sys.executable).resolve().parent / "ocrmypdf.exe"
+    if env_ocr.exists():
+        OCR_MY_PDF_EXE = str(env_ocr)
+        logging.info(f"  ✅ Found OCRmyPDF in active environment: {OCR_MY_PDF_EXE}")
+    else:
+        OCR_MY_PDF_EXE = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
 
     if not all((GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE)):
         logging.error("Please install missing dependencies or add them to your system's PATH.")
@@ -140,18 +148,23 @@ def ocr_pdf(src: str, dst: str) -> tuple[bool, str | None]:
     """Run OCRmyPDF with size-optimized settings and clear logging."""
     cmd = [
         OCR_MY_PDF_EXE,
-        "--force-ocr",          # re-OCR every page to ensure a clean text layer
+        "--skip-text",          # only OCR pages without an existing text layer
         "--optimize", "3",
-        "--jpeg-quality", "85",
-        "--output-type", "pdfa-2",
+        "--jpeg-quality", "40",
+        "--output-type", "pdf",
         "--deskew",
         src, dst,
     ]
     logging.info(f"Starting OCR step for: {Path(src).name}")
     try:
         result = subprocess.run(
-            cmd, check=True, capture_output=True, text=True,
-            encoding='utf-8', timeout=OCR_TIMEOUT_SECS,
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",  # tolerate non-UTF8 output from child process
+            timeout=OCR_TIMEOUT_SECS,
         )
         if "skipping all processing" in result.stdout:
             logging.info("PDF is already searchable. OCR not required.")

@@ -6,4 +6,4 @@ Windows Registry Editor Version 5.00
 "MultiSelectModel"="Document"
 
 [HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command]
-@="cmd /c \"C:\\Utils\\pdfconvert\\venv\\Scripts\\python.exe\" \"C:\\Utils\\pdfconvert\\pdf_automation_v6.1.py\" \"%1\""
+@="cmd /c \"C:\\LocalVenvs\\pdfconvert\\Scripts\\python.exe\" \"C:\\Utils\\pdfconvert\\pdf_automation_v6.1.py\" \"%1\""

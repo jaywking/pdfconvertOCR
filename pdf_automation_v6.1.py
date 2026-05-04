@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import logging
 import re
+import os
 import tempfile
 import time
 import uuid
@@ -27,6 +28,8 @@ LOG_DIR = BASE_DIR / "logs"
 
 GHOSTSCRIPT_EXE = ""  # Populated by find_executable
 OCR_MY_PDF_EXE = ""   # Populated by find_executable
+TESSERACT_EXE = ""    # Populated by find_executable
+PNGQUANT_EXE = ""     # Populated by find_executable
 GS_TIMEOUT_SECS = 600
 OCR_TIMEOUT_SECS = 600
 
@@ -79,9 +82,20 @@ def find_executable(name: str, friendly_name: str, search_paths: list[Path]) -> 
     logging.error(f"  ❌ Missing dependency: {friendly_name} not found in PATH or common directories.")
     return ""
 
+def ensure_executable_dir_on_path(exe_path: str) -> None:
+    """Make auto-detected tool folders visible to child processes."""
+    if not exe_path:
+        return
+    exe_dir = str(Path(exe_path).resolve().parent)
+    current_path = os.environ.get("PATH", "")
+    path_parts = [p for p in current_path.split(os.pathsep) if p]
+    if exe_dir.lower() not in {p.lower() for p in path_parts}:
+        os.environ["PATH"] = exe_dir + os.pathsep + current_path
+        logging.info(f"  ✅ Added dependency folder to PATH for this run: {exe_dir}")
+
 def check_dependencies() -> bool:
     """Check if required command-line tools are installed."""
-    global GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE
+    global GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE, TESSERACT_EXE, PNGQUANT_EXE
     logging.info("🔎 Checking for dependencies...")
 
     # Define search paths for each executable
@@ -93,8 +107,19 @@ def check_dependencies() -> bool:
         Path(r"C:\\Users"), # Search all user profiles
         Path(r"C:\\Program Files")
     ]
+    tesseract_paths = [
+        Path(r"C:\\Program Files\\Tesseract-OCR"),
+        Path(r"C:\\Program Files")
+    ]
+    pngquant_paths = [
+        Path(r"C:\\ProgramData\\chocolatey\\bin"),
+        Path(r"C:\\ProgramData\\chocolatey\\lib"),
+        Path(r"C:\\Program Files")
+    ]
 
     GHOSTSCRIPT_EXE = find_executable("gswin64c.exe", "Ghostscript", gs_paths)
+    TESSERACT_EXE = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths)
+    PNGQUANT_EXE = find_executable("pngquant.exe", "pngquant", pngquant_paths)
 
     # Prefer OCRmyPDF from the active Python environment to avoid PATH collisions
     # (e.g., global/user installs shadowing this project's venv).
@@ -105,10 +130,14 @@ def check_dependencies() -> bool:
     else:
         OCR_MY_PDF_EXE = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
 
-    if not all((GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE)):
+    if not all((GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE, TESSERACT_EXE, PNGQUANT_EXE)):
         logging.error("Please install missing dependencies or add them to your system's PATH.")
+        if not PNGQUANT_EXE:
+            logging.error("pngquant is required by OCRmyPDF when using --optimize 3. Install it with: choco install pngquant")
         return False
 
+    ensure_executable_dir_on_path(TESSERACT_EXE)
+    ensure_executable_dir_on_path(PNGQUANT_EXE)
     return True
 
 def is_pdf_locked(path: Path) -> bool:
@@ -239,6 +268,12 @@ def archive_original(src: Path, archive_dir: Path) -> Path:
     dest = archive_dir / f"{safe_filename(src.stem)}_{timestamp}_{unique}{src.suffix}"
     return Path(shutil.move(src, dest))
 
+def preserve_modified_time(dst: Path, source_stat: os.stat_result) -> None:
+    """Set the generated PDF's Modified Date to match the source PDF."""
+    os.utime(dst, ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns))
+    modified = datetime.fromtimestamp(source_stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(f"Preserved Modified Date on {dst.name}: {modified}")
+
 # ---------- Core Processing Logic ----------
 
 
@@ -255,6 +290,7 @@ def _process_one_pdf(
     error: str | None = None
     pages: int | None = None
     unlocked = False
+    source_stat = source_path.stat()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=temp_dir) as tmp_dir:
@@ -287,6 +323,8 @@ def _process_one_pdf(
                     pages = len(doc)
             except Exception as exc:
                 logging.warning(f"Could not count pages for {final_ocr_pdf.name}: {exc}")
+
+            preserve_modified_time(final_ocr_pdf, source_stat)
 
             archived_path = archive_original(source_path, archive_dir)
             logging.info(f"Original '{source_path.name}' moved to {archived_path.parent}")

@@ -1,0 +1,25 @@
+PDFConvertOCR - Quick Instructions
+
+PDFConvertOCR is used from Windows File Explorer.
+
+To convert a PDF:
+
+1. Open the folder that contains the PDF.
+2. Right-click the PDF file.
+3. Choose "Convert to OCR (v6.1)".
+4. Wait for the conversion window to finish.
+
+What happens:
+
+- A new searchable PDF is created next to the original.
+- The new file is named like:
+  OriginalFileName_OCR.pdf
+- The new file keeps the same Modified Date as the original PDF.
+- The original PDF is moved into an "Originals" folder next to the PDF.
+
+You can select more than one PDF, right-click, and choose "Convert to OCR (v6.1)" to process multiple files.
+
+To uninstall:
+
+Open Windows Settings > Apps > Installed apps, find PDFConvertOCR, and choose Uninstall.
+

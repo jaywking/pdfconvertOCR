@@ -20,7 +20,8 @@ from pathlib import Path
 import fitz  # PyMuPDF
 
 # ---------- Configuration ----------
-BASE_DIR = Path(r"C:\\Utils\\pdfconvert")
+APP_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(os.environ.get("PDFCONVERTOCR_BASE_DIR", APP_DIR))
 SOURCE_DIR = BASE_DIR
 PROCESSED_DIR = BASE_DIR / "_processed"
 COMPLETE_DIR = BASE_DIR / "_complete"
@@ -62,20 +63,42 @@ def safe_filename(name: str) -> str:
     """Strip illegal Win characters from filename stem."""
     return _illegal.sub("_", name)
 
-def find_executable(name: str, friendly_name: str, search_paths: list[Path]) -> str:
+def find_executable(
+    name: str,
+    friendly_name: str,
+    search_paths: list[Path],
+    prefer_search_paths: bool = False,
+) -> str:
     """Find an executable in common locations."""
-    # 1. Check PATH first
+    def find_in_search_paths() -> str:
+        # Use rglob to find the executable in subdirectories.
+        for base_path in search_paths:
+            if not base_path.exists():
+                continue
+            if base_path.is_file() and base_path.name.lower() == name.lower():
+                return str(base_path)
+            direct = base_path / name
+            if direct.exists():
+                return str(direct)
+            results = list(base_path.rglob(name))
+            if results:
+                return str(results[0])
+        return ""
+
+    if prefer_search_paths:
+        found_path = find_in_search_paths()
+        if found_path:
+            logging.info(f"  ✅ Found {friendly_name} via bundled/common path: {found_path}")
+            return found_path
+
     found_path = shutil.which(name)
     if found_path:
         logging.info(f"  ✅ Found {friendly_name} in PATH: {found_path}")
         return found_path
 
-    # 2. Check common installation folders
-    for base_path in search_paths:
-        # Use rglob to find the executable in subdirectories
-        results = list(base_path.rglob(name))
-        if results:
-            found_path = str(results[0])
+    if not prefer_search_paths:
+        found_path = find_in_search_paths()
+        if found_path:
             logging.info(f"  ✅ Found {friendly_name} via auto-detect: {found_path}")
             return found_path
 
@@ -100,33 +123,42 @@ def check_dependencies() -> bool:
 
     # Define search paths for each executable
     gs_paths = [
+        APP_DIR / "vendor" / "ghostscript" / "bin",
+        APP_DIR / "vendor" / "ghostscript",
         Path(r"C:\\Program Files\\gs"),
         Path(r"C:\\Program Files (x86)\\gs")
     ]
     ocr_paths = [
+        APP_DIR / "python" / "Scripts",
         Path(r"C:\\Users"), # Search all user profiles
         Path(r"C:\\Program Files")
     ]
     tesseract_paths = [
+        APP_DIR / "vendor" / "tesseract",
         Path(r"C:\\Program Files\\Tesseract-OCR"),
         Path(r"C:\\Program Files")
     ]
     pngquant_paths = [
+        APP_DIR / "vendor" / "pngquant",
         Path(r"C:\\ProgramData\\chocolatey\\bin"),
         Path(r"C:\\ProgramData\\chocolatey\\lib"),
         Path(r"C:\\Program Files")
     ]
 
-    GHOSTSCRIPT_EXE = find_executable("gswin64c.exe", "Ghostscript", gs_paths)
-    TESSERACT_EXE = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths)
-    PNGQUANT_EXE = find_executable("pngquant.exe", "pngquant", pngquant_paths)
+    GHOSTSCRIPT_EXE = find_executable("gswin64c.exe", "Ghostscript", gs_paths, prefer_search_paths=True)
+    TESSERACT_EXE = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths, prefer_search_paths=True)
+    PNGQUANT_EXE = find_executable("pngquant.exe", "pngquant", pngquant_paths, prefer_search_paths=True)
 
     # Prefer OCRmyPDF from the active Python environment to avoid PATH collisions
     # (e.g., global/user installs shadowing this project's venv).
     env_ocr = Path(sys.executable).resolve().parent / "ocrmypdf.exe"
+    env_scripts_ocr = Path(sys.executable).resolve().parent / "Scripts" / "ocrmypdf.exe"
     if env_ocr.exists():
         OCR_MY_PDF_EXE = str(env_ocr)
         logging.info(f"  ✅ Found OCRmyPDF in active environment: {OCR_MY_PDF_EXE}")
+    elif env_scripts_ocr.exists():
+        OCR_MY_PDF_EXE = str(env_scripts_ocr)
+        logging.info(f"  ✅ Found OCRmyPDF in active environment Scripts folder: {OCR_MY_PDF_EXE}")
     else:
         OCR_MY_PDF_EXE = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
 
@@ -138,6 +170,7 @@ def check_dependencies() -> bool:
 
     ensure_executable_dir_on_path(TESSERACT_EXE)
     ensure_executable_dir_on_path(PNGQUANT_EXE)
+    ensure_executable_dir_on_path(GHOSTSCRIPT_EXE)
     return True
 
 def is_pdf_locked(path: Path) -> bool:

@@ -2,15 +2,38 @@
 setlocal
 
 set "ROOT=%~dp0"
-set "PYTHON_EXE=C:\LocalVenvs\pdfconvert\Scripts\python.exe"
+set "INSTALLED_PYTHON_EXE=%ROOT%python\python.exe"
+set "SOURCE_PYTHON_EXE=C:\LocalVenvs\pdfconvert\Scripts\python.exe"
+
+if exist "%ROOT%vendor\ghostscript\bin" set "PATH=%ROOT%vendor\ghostscript\bin;%PATH%"
+if exist "%ROOT%vendor\tesseract" set "PATH=%ROOT%vendor\tesseract;%PATH%"
+if exist "%ROOT%vendor\pngquant" set "PATH=%ROOT%vendor\pngquant;%PATH%"
+if exist "%ROOT%vendor\tesseract\tessdata" set "TESSDATA_PREFIX=%ROOT%vendor\tesseract\tessdata"
+
+if exist "%INSTALLED_PYTHON_EXE%" (
+    set "PYTHON_EXE=%INSTALLED_PYTHON_EXE%"
+) else (
+    set "PYTHON_EXE=%SOURCE_PYTHON_EXE%"
+)
 
 echo Processing file: %1
 if not exist "%PYTHON_EXE%" (
-    powershell -ExecutionPolicy Bypass -File "%ROOT%bootstrap.ps1"
-    if errorlevel 1 (
-        echo Failed to create the centralized virtual environment.
-        pause
-        exit /b 1
+    if exist "%ROOT%setup_installed_app.ps1" (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%setup_installed_app.ps1"
+        if errorlevel 1 (
+            echo Failed to prepare the installed PDFConvertOCR runtime.
+            pause
+            exit /b 1
+        )
+        set "PYTHON_EXE=%INSTALLED_PYTHON_EXE%"
+    ) else (
+        powershell -ExecutionPolicy Bypass -File "%ROOT%bootstrap.ps1"
+        if errorlevel 1 (
+            echo Failed to create the centralized virtual environment.
+            pause
+            exit /b 1
+        )
+        set "PYTHON_EXE=%SOURCE_PYTHON_EXE%"
     )
 )
 

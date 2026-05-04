@@ -1,10 +1,11 @@
 # Right-Click Context Menu Implementation
 
-This project implements the Explorer right-click action with three pieces:
+This project implements the Explorer right-click action with these pieces:
 
 1. A Windows Registry shell verb for `.pdf` files.
 2. A batch wrapper that receives the selected PDF path from Explorer.
 3. The Python script's single-file mode.
+4. Runtime tools available either globally or from the packaged install's `vendor\` folder.
 
 ## Files involved
 
@@ -15,10 +16,43 @@ This project implements the Explorer right-click action with three pieces:
 - `run_single_pdf.bat` is the command Explorer runs.
 - `bootstrap.ps1` creates or repairs the centralized virtual environment if it is missing.
 - `pdf_automation_v6.1.py` processes the selected PDF when given a PDF path argument.
+- `setup_installed_app.ps1` prepares the bundled Python runtime during packaged installs.
+- `installer/PDFConvertOCR.iss` creates the per-user Windows installer.
 
-## Double-click installer
+## Packaged installer
 
-The easiest way to install the right-click action is to double-click:
+For non-technical users, the preferred path is the Inno Setup installer:
+
+```text
+PDFConvertOCR-Setup-v6.1.1.exe
+```
+
+That installer copies the app to:
+
+```text
+%LOCALAPPDATA%\PDFConvertOCR
+```
+
+It also writes the current-user PDF shell verb and points it at the installed `run_single_pdf.bat`.
+
+The packaged install bundles runtime dependencies under the install folder:
+
+- `python\`: local Python runtime
+- `vendor\ghostscript\`: Ghostscript runtime
+- `vendor\tesseract\`: Tesseract runtime and tessdata
+- `vendor\pngquant\`: pngquant executable
+
+The installed tool is intentionally used from Explorer, not from a standalone app window. After installation, users should:
+
+1. Open the folder containing their PDF.
+2. Right-click the PDF.
+3. Choose **Convert to OCR (v6.1)**.
+
+The installer includes `HOW_TO_USE.txt` and a Start Menu shortcut named **How to use PDFConvertOCR** for these short instructions.
+
+## Source-checkout double-click installer
+
+When running from a source checkout, the easiest way to install the right-click action is to double-click:
 
 ```text
 install_right_click_context.bat
@@ -37,7 +71,7 @@ The installer uses this user-level registry path:
 HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1
 ```
 
-Using `HKCU` keeps the install scoped to the current Windows user and usually avoids needing an elevated terminal.
+Using `HKCU` keeps the install scoped to the current Windows user and usually avoids needing an elevated terminal. The source-checkout installer still expects dependencies to be installed globally or available through `bootstrap.ps1`.
 
 ## Manual registry verb
 
@@ -90,6 +124,7 @@ When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
 - If one or more arguments end in `.pdf`, it treats them as selected files.
 - Each valid file is passed to `process_single()`.
 - `process_single()` writes the OCR output next to the original as `<name>_OCR.pdf`.
+- The output PDF's Modified Date is set to match the source PDF after OCR and page numbering complete.
 - The original file is moved into an `Originals` folder next to the selected PDF.
 - If no PDF arguments are provided, the script falls back to batch mode.
 
@@ -113,8 +148,8 @@ reg import C:\Utils\pdfconvert\registry\add_OCR_context_v6.1.reg
 If the project moves, update these hard-coded paths:
 
 - `registry/add_OCR_context_v6.1.reg`: `C:\\Utils\\pdfconvert\\run_single_pdf.bat`
-- `run_single_pdf.bat`: `C:\LocalVenvs\pdfconvert\Scripts\python.exe`
-- `pdf_automation_v6.1.py`: `BASE_DIR = Path(r"C:\\Utils\\pdfconvert")`
+- `run_single_pdf.bat`: source-checkout fallback path `C:\LocalVenvs\pdfconvert\Scripts\python.exe`
+- `installer/PDFConvertOCR.iss`: packaged install metadata, output name, registry command, and installed file list
 
 If the visible menu label changes, update the registry default value:
 
@@ -159,5 +194,6 @@ After importing a removal file, restart Explorer or sign out and back in if the 
 - If the menu item does not appear, confirm the `.reg` file imported successfully and that it was imported with sufficient permissions.
 - If clicking the menu item opens a terminal and fails, run `run_single_pdf.bat "C:\path\to\file.pdf"` manually to see the error.
 - If the batch file cannot find Python, run `powershell -ExecutionPolicy Bypass -File C:\Utils\pdfconvert\bootstrap.ps1`.
-- If OCRmyPDF reports `Could not find program 'pngquant' on the PATH`, run `choco install pngquant` from an elevated PowerShell window.
+- If a packaged install cannot find Python packages, rerun the installer or run `setup_installed_app.ps1` from the install folder.
+- If OCRmyPDF reports `Could not find program 'pngquant' on the PATH` from a source checkout, run `choco install pngquant -y` from an elevated PowerShell window.
 - If paths contain spaces, keep every `%L`, `%1`, script path, and PDF path wrapped in quotes.

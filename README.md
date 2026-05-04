@@ -1,42 +1,62 @@
 # PDF Automation (Unlock + OCR) — v6.1
 
-A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size‑aware compression, and adds page numbers. It supports both batch processing and a right-click Explorer action.
+A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware compression, adds page numbers, and preserves useful file sorting dates. It supports both batch processing and a right-click Explorer action.
 
 ## What it does
 - Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript.
-- Runs **OCR** with OCRmyPDF (always re-OCRs each page to guarantee a clean text layer).
+- Runs **OCR** with OCRmyPDF to create a searchable text layer.
 - Adds **page numbers** in "Page X of Y" format to the bottom of each page.
 - Preserves the original PDF's Modified Date on the generated `*_OCR.pdf` output.
-- Uses PDF/A-2 output with balanced compression to keep sizes reasonable.
+- Uses standard searchable PDF output with balanced compression to keep sizes reasonable.
 - Supports two modes:
-  - **Right‑click mode** (Explorer): Processes selected PDFs **in place**, creates a new `*_OCR.pdf` file, and moves the original into an `Originals\` subfolder. This is the primary intended use.
+  - **Right-click mode** (Explorer): Processes selected PDFs **in place**, creates a new `*_OCR.pdf` file with the source file's Modified Date, and moves the original into an `Originals\` subfolder. This is the primary intended use.
   - **Batch mode** (manual): Running the script without arguments scans the root folder, writes results to `_complete\`, and moves originals to `_processed\` (with timestamp/UUID to avoid collisions).
 
-## Requirements
+## Quick Install
+
+For coworkers and non-technical users, use the packaged Windows installer from GitHub Releases:
+
+1. Download `PDFConvertOCR-Setup-v6.1.1.exe`.
+2. Double-click the installer.
+3. Right-click a PDF and choose **Convert to OCR (v6.1)**.
+
+The installer is designed to install per-user under `%LOCALAPPDATA%\PDFConvertOCR`, bundle the OCR runtime tools, and create the right-click menu automatically.
+
+## How To Use It
+
+PDFConvertOCR runs from Windows File Explorer. It does not open as a normal desktop app.
+
+1. Open the folder that contains the PDF.
+2. Right-click the PDF file.
+3. Choose **Convert to OCR (v6.1)**.
+4. Wait for the conversion window to finish.
+
+The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the source file's Modified Date, and moves the original into an `Originals\` folder.
+
+## Source Checkout Requirements
 - Windows 10 or 11
 - Python 3.x
-- **Ghostscript**: Must be installed and accessible via the system's PATH.
-- **Tesseract OCR**: Must be installed as it is a dependency for OCRmyPDF.
-- **pngquant**: Must be installed and accessible via PATH because OCRmyPDF requires it for `--optimize 3`.
-- Python packages as defined in `requirements.txt`.
+- **Ghostscript**: External executable. Must be installed and accessible via PATH or bundled under `vendor\ghostscript`.
+- **Tesseract OCR**: External executable. OCRmyPDF needs it for OCR work.
+- **pngquant**: External executable. OCRmyPDF needs it when this script uses `--optimize 3`.
+- Python packages from `requirements.txt`.
 - Use the project virtual environment (`C:\LocalVenvs\pdfconvert`) when running the script.
 
-Install required Python packages:
-```bat
-pip install -r requirements.txt
+Create or repair the source-checkout Python environment:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvert\bootstrap.ps1"
 ```
 
-Install the external `pngquant` executable with Chocolatey:
+Install the external `pngquant` executable globally with Chocolatey if you are not using the packaged installer:
 ```powershell
-choco install pngquant
+choco install pngquant -y
 ```
 
 ## Setup & Usage (Right-Click Method)
 
 This is the recommended way to use the tool.
 
-1.  **Install Dependencies**: Make sure Ghostscript and Tesseract are installed on your system.
-    Also install pngquant if it is missing: `choco install pngquant`.
+1.  **Install Dependencies**: Make sure Ghostscript, Tesseract, and pngquant are installed on your system, or use the packaged installer.
 2.  **Add Context Menu**: Double-click `install_right_click_context.bat`. This prepares the Python environment and adds the "Convert to OCR (v6.1)" option to your right-click menu for PDF files.
 3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.1)**.
 4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory with the original file's Modified Date, and the original file will be moved into a new `Originals` subfolder.
@@ -48,8 +68,27 @@ For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
 - `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
+- `setup_installed_app.ps1`: Post-install setup used by the packaged Windows installer.
+- `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
+- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.1.1.exe`.
 - `registry/add_OCR_context_v6.1.reg`: The registry file for creating the right-click context menu item.
 - `archives/`: Contains archived scripts and logs from previous versions.
+
+## Building the Windows Installer
+
+Install Inno Setup 6 on the build machine, then run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1
+```
+
+The build script prepares an offline vendor payload from the local build machine and writes:
+
+```text
+dist\PDFConvertOCR-Setup-v6.1.1.exe
+```
+
+Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
 
 ## How it Works
 
@@ -70,8 +109,10 @@ ocrmypdf.exe --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --desk
 - `--output-type pdf` writes standard searchable PDF output.
 
 ### Dependency Resolution
-- The script now prefers `ocrmypdf.exe` from the **active Python environment** first (for example `venv\Scripts\ocrmypdf.exe`) before searching system PATH.
+- The script checks for Ghostscript, Tesseract, pngquant, and OCRmyPDF before processing.
+- The script prefers `ocrmypdf.exe` from the **active Python environment** first (for example `C:\LocalVenvs\pdfconvert\Scripts\ocrmypdf.exe` or an installed `python\Scripts\ocrmypdf.exe`) before searching system PATH.
 - This prevents global/user Python package conflicts from breaking OCR when the project venv is healthy.
+- Packaged installs prepend bundled runtime folders to PATH so OCRmyPDF can launch Ghostscript, Tesseract, and pngquant.
 
 ### Page Numbering
 After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each page.
@@ -89,7 +130,7 @@ After OCR and page numbering are complete, the script sets the generated `*_OCR.
   - Cause: OCRmyPDF needs the external `pngquant.exe` tool when the script uses `--optimize 3`.
   - Fix:
   ```powershell
-  choco install pngquant
+  choco install pngquant -y
   ```
 - **`SystemError` about `pydantic-core` incompatibility**:
   - Cause: A global/user `ocrmypdf` install is loading mismatched `pydantic` and `pydantic-core` versions.

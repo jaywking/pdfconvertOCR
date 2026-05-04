@@ -1,0 +1,12 @@
+PDFConvertOCR has been installed.
+
+This tool runs from Windows File Explorer. It does not have a main desktop app window.
+
+To use it:
+
+1. Open the folder that contains your PDF.
+2. Right-click the PDF.
+3. Choose "Convert to OCR (v6.1)".
+
+The tool creates a searchable *_OCR.pdf next to the original PDF, keeps the same Modified Date, and moves the original into an "Originals" folder.
+

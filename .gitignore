@@ -3,6 +3,7 @@ _processed/
 _complete/
 logs/
 *.log
+dist/
 
 # Intermediates & outputs
 *_unlocked.pdf
@@ -17,3 +18,8 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+# Installer build cache and bundled binary payloads
+installer/cache/
+installer/vendor/*
+!installer/vendor/README.md

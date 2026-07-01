@@ -37,6 +37,23 @@ if (-not (Test-Path $PythonExe)) {
     throw "Python runtime was not installed at $PythonExe"
 }
 
+$pipReady = $false
+try {
+    & $PythonExe -m pip --version
+    $pipReady = ($LASTEXITCODE -eq 0)
+}
+catch {
+    $pipReady = $false
+}
+
+if (-not $pipReady) {
+    Write-Host "Bootstrapping pip in bundled Python runtime..."
+    & $PythonExe -m ensurepip --upgrade
+    if ($LASTEXITCODE -ne 0) {
+        throw "pip bootstrap failed."
+    }
+}
+
 if (-not (Test-Path $Wheelhouse)) {
     throw "Offline wheelhouse not found at $Wheelhouse"
 }

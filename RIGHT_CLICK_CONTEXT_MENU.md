@@ -16,7 +16,7 @@ This project implements the Explorer right-click action with these pieces:
 - `run_single_pdf.bat` is the command Explorer runs.
 - `bootstrap.ps1` creates or repairs the centralized virtual environment if it is missing.
 - `pdf_automation_v6.1.py` processes the selected PDF when given a PDF path argument.
-- `setup_installed_app.ps1` prepares the bundled Python runtime during packaged installs.
+- `setup_installed_app.ps1` prepares the bundled Python runtime during packaged installs and can repair missing `pip` or Python packages from the bundled wheelhouse.
 - `installer/PDFConvertOCR.iss` creates the per-user Windows installer.
 
 ## Packaged installer
@@ -194,6 +194,6 @@ After importing a removal file, restart Explorer or sign out and back in if the 
 - If the menu item does not appear, confirm the `.reg` file imported successfully and that it was imported with sufficient permissions.
 - If clicking the menu item opens a terminal and fails, run `run_single_pdf.bat "C:\path\to\file.pdf"` manually to see the error.
 - If the batch file cannot find Python, run `powershell -ExecutionPolicy Bypass -File C:\Utils\pdfconvert\bootstrap.ps1`.
-- If a packaged install cannot find Python packages, rerun the installer or run `setup_installed_app.ps1` from the install folder.
+- If a packaged install cannot find Python packages, for example `ModuleNotFoundError: No module named 'fitz'`, rerun the installer or run `setup_installed_app.ps1` from the install folder. The setup script bootstraps `pip` with `ensurepip` when needed, then reinstalls packages from `vendor\wheelhouse`.
 - If OCRmyPDF reports `Could not find program 'pngquant' on the PATH` from a source checkout, run `choco install pngquant -y` from an elevated PowerShell window.
 - If paths contain spaces, keep every `%L`, `%1`, script path, and PDF path wrapped in quotes.

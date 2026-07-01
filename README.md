@@ -68,7 +68,7 @@ For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
 - `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
-- `setup_installed_app.ps1`: Post-install setup used by the packaged Windows installer.
+- `setup_installed_app.ps1`: Post-install setup and repair script used by the packaged Windows installer.
 - `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
 - `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.1.1.exe`.
 - `registry/add_OCR_context_v6.1.reg`: The registry file for creating the right-click context menu item.
@@ -126,6 +126,7 @@ After OCR and page numbering are complete, the script sets the generated `*_OCR.
 
 ## Troubleshooting
 - **Script fails silently**: The most common cause is a missing dependency. Ensure both Ghostscript and Tesseract are installed and their paths are correctly configured in your system's environment variables.
+- **Packaged right-click install fails with `ModuleNotFoundError: No module named 'fitz'`**: Run `setup_installed_app.ps1` from `%LOCALAPPDATA%\PDFConvertOCR`. It repairs the bundled Python runtime, including bootstrapping `pip` if needed, and reinstalls packages from the offline wheelhouse.
 - **`Could not find program 'pngquant' on the PATH`**:
   - Cause: OCRmyPDF needs the external `pngquant.exe` tool when the script uses `--optimize 3`.
   - Fix:

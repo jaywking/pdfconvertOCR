@@ -4,6 +4,11 @@ setlocal
 set "ROOT=%~dp0"
 set "INSTALLED_PYTHON_EXE=%ROOT%python\python.exe"
 set "SOURCE_PYTHON_EXE=C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe"
+set "MAIN_SCRIPT=pdf_automation_v6.1.py"
+
+if exist "%ROOT%app_metadata.json" (
+    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$m = Get-Content -Raw '%ROOT%app_metadata.json' | ConvertFrom-Json; $m.mainScript"`) do set "MAIN_SCRIPT=%%I"
+)
 
 if exist "%ROOT%vendor\ghostscript\bin" set "PATH=%ROOT%vendor\ghostscript\bin;%PATH%"
 if exist "%ROOT%vendor\tesseract" set "PATH=%ROOT%vendor\tesseract;%PATH%"
@@ -37,5 +42,5 @@ if not exist "%PYTHON_EXE%" (
     )
 )
 
-"%PYTHON_EXE%" "%ROOT%pdf_automation_v6.1.py" "%~1"
+"%PYTHON_EXE%" "%ROOT%%MAIN_SCRIPT%" "%~1"
 pause

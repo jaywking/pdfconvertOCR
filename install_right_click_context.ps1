@@ -4,12 +4,18 @@ if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyCo
 }
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RunSinglePdfBat = Join-Path $ProjectRoot "run_single_pdf.bat"
+$MetadataPath = Join-Path $ProjectRoot "app_metadata.json"
+if (-not (Test-Path $MetadataPath)) {
+    throw "Missing app_metadata.json at $MetadataPath"
+}
+$Metadata = Get-Content -LiteralPath $MetadataPath -Raw | ConvertFrom-Json
+
+$RunSinglePdfBat = Join-Path $ProjectRoot $Metadata.runnerScript
 $BootstrapScript = Join-Path $ProjectRoot "bootstrap.ps1"
-$MainScript = Join-Path $ProjectRoot "pdf_automation_v6.1.py"
+$MainScript = Join-Path $ProjectRoot $Metadata.mainScript
 
 if (-not (Test-Path $RunSinglePdfBat)) {
-    throw "Missing run_single_pdf.bat at $RunSinglePdfBat"
+    throw "Missing $($Metadata.runnerScript) at $RunSinglePdfBat"
 }
 
 if (-not (Test-Path $BootstrapScript)) {
@@ -17,16 +23,16 @@ if (-not (Test-Path $BootstrapScript)) {
 }
 
 if (-not (Test-Path $MainScript)) {
-    throw "Missing pdf_automation_v6.1.py at $MainScript"
+    throw "Missing $($Metadata.mainScript) at $MainScript"
 }
 
 Write-Host "Project root: $ProjectRoot"
 Write-Host "Preparing Python environment..."
 & $BootstrapScript
 
-$VerbKey = "HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1"
+$VerbKey = "HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\$($Metadata.contextVerb)"
 $CommandKey = Join-Path $VerbKey "command"
-$MenuLabel = "Convert to OCR (v6.1)"
+$MenuLabel = $Metadata.menuLabel
 $Icon = "C:\Windows\System32\imageres.dll,-5302"
 $Command = ('"{0}" "%L"' -f $RunSinglePdfBat)
 

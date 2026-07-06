@@ -1,26 +1,47 @@
+#ifndef MyAppName
 #define MyAppName "PDFConvertOCR"
+#endif
 #ifndef MyAppVersion
 #define MyAppVersion "6.1.1"
 #endif
+#ifndef MyDisplayVersion
+#define MyDisplayVersion "6.1"
+#endif
+#ifndef MyMenuLabel
+#define MyMenuLabel "Convert to OCR (v6.1)"
+#endif
+#ifndef MyContextVerb
+#define MyContextVerb "ConvertToOCRv6.1"
+#endif
+#ifndef MyAppPublisher
 #define MyAppPublisher "jaywking"
-#define MyAppExeName "run_single_pdf.bat"
+#endif
+#ifndef MyMainScript
+#define MyMainScript "pdf_automation_v6.1.py"
+#endif
+#ifndef MyRunnerScript
+#define MyRunnerScript "run_single_pdf.bat"
+#endif
+#ifndef MySetupBaseName
+#define MySetupBaseName "PDFConvertOCR-Setup-v"
+#endif
 
 [Setup]
 AppId={{8F09513D-B90D-4E0B-986E-80E4530D54DF}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\PDFConvertOCR
-DefaultGroupName=PDFConvertOCR
+DefaultDirName={localappdata}\{#MyAppName}
+DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputBaseFilename=PDFConvertOCR-Setup-v{#MyAppVersion}
+OutputBaseFilename={#MySetupBaseName}{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayName=PDFConvertOCR
+UninstallDisplayName={#MyAppName}
 SetupLogging=yes
 InfoAfterFile=INSTALL_COMPLETE.txt
 
@@ -28,12 +49,13 @@ InfoAfterFile=INSTALL_COMPLETE.txt
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-FinishedLabel=Setup has finished installing [name]. To use it, right-click a PDF in File Explorer and choose "Convert to OCR (v6.1)".
-FinishedLabelNoIcons=Setup has finished installing [name]. To use it, right-click a PDF in File Explorer and choose "Convert to OCR (v6.1)".
+FinishedLabel=Setup has finished installing [name]. To use it, right-click a PDF in File Explorer and choose "{#MyMenuLabel}".
+FinishedLabelNoIcons=Setup has finished installing [name]. To use it, right-click a PDF in File Explorer and choose "{#MyMenuLabel}".
 
 [Files]
-Source: "..\pdf_automation_v6.1.py"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\run_single_pdf.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\{#MyMainScript}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\{#MyRunnerScript}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\app_metadata.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\requirements.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\setup_installed_app.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -47,10 +69,10 @@ Source: "vendor\pngquant\*"; DestDir: "{app}\vendor\pngquant"; Flags: ignorevers
 Source: "vendor\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Registry]
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1"; ValueType: string; ValueData: "Convert to OCR (v6.1)"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1"; ValueType: string; ValueName: "Icon"; ValueData: "{sys}\imageres.dll,-5302"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Document"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command"; ValueType: string; ValueData: """{app}\run_single_pdf.bat"" ""%L"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueData: "{#MyMenuLabel}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueName: "Icon"; ValueData: "{sys}\imageres.dll,-5302"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Document"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}\command"; ValueType: string; ValueData: """{app}\{#MyRunnerScript}"" ""%L"""; Flags: uninsdeletekey
 
 [Icons]
 Name: "{group}\PDFConvertOCR install folder"; Filename: "{app}"

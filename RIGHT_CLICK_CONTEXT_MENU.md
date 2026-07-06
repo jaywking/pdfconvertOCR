@@ -10,6 +10,7 @@ This project implements the Explorer right-click action with these pieces:
 ## Files involved
 
 - `registry/add_OCR_context_v6.1.reg` adds the Explorer menu item.
+- `app_metadata.json` is the source of truth for the app version, menu label, registry verb, runner script, and main script names used by the install/build scripts.
 - `install_right_click_context.bat` is the double-click installer for the Explorer menu item.
 - `install_right_click_context.ps1` bootstraps the project and writes the user-level registry keys.
 - `uninstall_right_click_context.bat` removes the Explorer menu item.

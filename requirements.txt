@@ -1,2 +1,2 @@
-ocrmypdf
-PyMuPDF
+ocrmypdf==17.4.2
+PyMuPDF==1.27.2.3

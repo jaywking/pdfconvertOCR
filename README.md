@@ -64,6 +64,7 @@ This is the recommended way to use the tool.
 For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
 
 ## Core Files
+- `app_metadata.json`: The shared source of truth for app version, Explorer menu label, registry verb, runner script, and main script names.
 - `pdf_automation_v6.1.py`: The main Python script containing all the logic.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
@@ -87,6 +88,10 @@ The build script prepares an offline vendor payload from the local build machine
 ```text
 dist\PDFConvertOCR-Setup-v6.1.1.exe
 ```
+
+`app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.
+
+`requirements.txt` pins the top-level Python packages to the versions currently bundled in the offline wheelhouse. If you intentionally upgrade OCRmyPDF or PyMuPDF, rebuild the installer vendor payload so `setup_installed_app.ps1` can repair packaged installs from matching wheels.
 
 Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
 

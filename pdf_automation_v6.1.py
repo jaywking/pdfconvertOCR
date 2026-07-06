@@ -15,22 +15,12 @@ import os
 import tempfile
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import fitz  # PyMuPDF
 
 # ---------- Configuration ----------
-APP_DIR = Path(__file__).resolve().parent
-BASE_DIR = Path(os.environ.get("PDFCONVERTOCR_BASE_DIR", APP_DIR))
-SOURCE_DIR = BASE_DIR
-PROCESSED_DIR = BASE_DIR / "_processed"
-COMPLETE_DIR = BASE_DIR / "_complete"
-LOG_DIR = BASE_DIR / "logs"
-
-GHOSTSCRIPT_EXE = ""  # Populated by find_executable
-OCR_MY_PDF_EXE = ""   # Populated by find_executable
-TESSERACT_EXE = ""    # Populated by find_executable
-PNGQUANT_EXE = ""     # Populated by find_executable
 GS_TIMEOUT_SECS = 600
 OCR_TIMEOUT_SECS = 600
 
@@ -41,20 +31,67 @@ PAGE_NUMBER_FONTSIZE = 8
 PAGE_NUMBER_Y_OFFSET = 20  # Distance from bottom of page
 PAGE_NUMBER_FORMAT = "Page {page_num} of {total_pages}"
 
-# ---------- One-time directory bootstrapping ----------
-for d in (PROCESSED_DIR, COMPLETE_DIR, LOG_DIR):
-    d.mkdir(parents=True, exist_ok=True)
 
-# ---------- Logging ----------
-log_file = LOG_DIR / datetime.now().strftime("log_%Y-%m-%d_%H%M.txt")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8"),
-        logging.StreamHandler()
-    ]
-)
+@dataclass(frozen=True)
+class AppConfig:
+    app_dir: Path
+    base_dir: Path
+    source_dir: Path
+    processed_dir: Path
+    complete_dir: Path
+    log_dir: Path
+
+
+@dataclass(frozen=True)
+class RuntimeTools:
+    ghostscript: str
+    ocrmypdf: str
+    tesseract: str
+    pngquant: str
+
+
+@dataclass
+class ProcessResult:
+    file: str
+    status: str
+    pages: int | None
+    duration_s: float
+    unlocked: bool
+    error: str | None = None
+
+
+def build_config() -> AppConfig:
+    """Build runtime paths without touching the filesystem."""
+    app_dir = Path(__file__).resolve().parent
+    base_dir = Path(os.environ.get("PDFCONVERTOCR_BASE_DIR", app_dir))
+    return AppConfig(
+        app_dir=app_dir,
+        base_dir=base_dir,
+        source_dir=base_dir,
+        processed_dir=base_dir / "_processed",
+        complete_dir=base_dir / "_complete",
+        log_dir=base_dir / "logs",
+    )
+
+
+def ensure_runtime_dirs(config: AppConfig) -> None:
+    """Create folders used by batch mode and logging."""
+    for d in (config.processed_dir, config.complete_dir, config.log_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+
+def configure_logging(config: AppConfig) -> None:
+    """Configure per-run logging after runtime paths are known."""
+    log_file = config.log_dir / datetime.now().strftime("log_%Y-%m-%d_%H%M.txt")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler()
+        ],
+        force=True,
+    )
 
 # ---------- Helper functions ----------
 _illegal = re.compile(r'[<>:"/\\|?*]')
@@ -116,62 +153,66 @@ def ensure_executable_dir_on_path(exe_path: str) -> None:
         os.environ["PATH"] = exe_dir + os.pathsep + current_path
         logging.info(f"  ✅ Added dependency folder to PATH for this run: {exe_dir}")
 
-def check_dependencies() -> bool:
+def check_dependencies(config: AppConfig) -> RuntimeTools | None:
     """Check if required command-line tools are installed."""
-    global GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE, TESSERACT_EXE, PNGQUANT_EXE
     logging.info("🔎 Checking for dependencies...")
 
     # Define search paths for each executable
     gs_paths = [
-        APP_DIR / "vendor" / "ghostscript" / "bin",
-        APP_DIR / "vendor" / "ghostscript",
+        config.app_dir / "vendor" / "ghostscript" / "bin",
+        config.app_dir / "vendor" / "ghostscript",
         Path(r"C:\\Program Files\\gs"),
         Path(r"C:\\Program Files (x86)\\gs")
     ]
     ocr_paths = [
-        APP_DIR / "python" / "Scripts",
+        config.app_dir / "python" / "Scripts",
         Path(r"C:\\Users"), # Search all user profiles
         Path(r"C:\\Program Files")
     ]
     tesseract_paths = [
-        APP_DIR / "vendor" / "tesseract",
+        config.app_dir / "vendor" / "tesseract",
         Path(r"C:\\Program Files\\Tesseract-OCR"),
         Path(r"C:\\Program Files")
     ]
     pngquant_paths = [
-        APP_DIR / "vendor" / "pngquant",
+        config.app_dir / "vendor" / "pngquant",
         Path(r"C:\\ProgramData\\chocolatey\\bin"),
         Path(r"C:\\ProgramData\\chocolatey\\lib"),
         Path(r"C:\\Program Files")
     ]
 
-    GHOSTSCRIPT_EXE = find_executable("gswin64c.exe", "Ghostscript", gs_paths, prefer_search_paths=True)
-    TESSERACT_EXE = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths, prefer_search_paths=True)
-    PNGQUANT_EXE = find_executable("pngquant.exe", "pngquant", pngquant_paths, prefer_search_paths=True)
+    ghostscript_exe = find_executable("gswin64c.exe", "Ghostscript", gs_paths, prefer_search_paths=True)
+    tesseract_exe = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths, prefer_search_paths=True)
+    pngquant_exe = find_executable("pngquant.exe", "pngquant", pngquant_paths, prefer_search_paths=True)
 
     # Prefer OCRmyPDF from the active Python environment to avoid PATH collisions
     # (e.g., global/user installs shadowing this project's venv).
     env_ocr = Path(sys.executable).resolve().parent / "ocrmypdf.exe"
     env_scripts_ocr = Path(sys.executable).resolve().parent / "Scripts" / "ocrmypdf.exe"
     if env_ocr.exists():
-        OCR_MY_PDF_EXE = str(env_ocr)
-        logging.info(f"  ✅ Found OCRmyPDF in active environment: {OCR_MY_PDF_EXE}")
+        ocrmypdf_exe = str(env_ocr)
+        logging.info(f"  ✅ Found OCRmyPDF in active environment: {ocrmypdf_exe}")
     elif env_scripts_ocr.exists():
-        OCR_MY_PDF_EXE = str(env_scripts_ocr)
-        logging.info(f"  ✅ Found OCRmyPDF in active environment Scripts folder: {OCR_MY_PDF_EXE}")
+        ocrmypdf_exe = str(env_scripts_ocr)
+        logging.info(f"  ✅ Found OCRmyPDF in active environment Scripts folder: {ocrmypdf_exe}")
     else:
-        OCR_MY_PDF_EXE = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
+        ocrmypdf_exe = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
 
-    if not all((GHOSTSCRIPT_EXE, OCR_MY_PDF_EXE, TESSERACT_EXE, PNGQUANT_EXE)):
+    if not all((ghostscript_exe, ocrmypdf_exe, tesseract_exe, pngquant_exe)):
         logging.error("Please install missing dependencies or add them to your system's PATH.")
-        if not PNGQUANT_EXE:
+        if not pngquant_exe:
             logging.error("pngquant is required by OCRmyPDF when using --optimize 3. Install it with: choco install pngquant")
-        return False
+        return None
 
-    ensure_executable_dir_on_path(TESSERACT_EXE)
-    ensure_executable_dir_on_path(PNGQUANT_EXE)
-    ensure_executable_dir_on_path(GHOSTSCRIPT_EXE)
-    return True
+    ensure_executable_dir_on_path(tesseract_exe)
+    ensure_executable_dir_on_path(pngquant_exe)
+    ensure_executable_dir_on_path(ghostscript_exe)
+    return RuntimeTools(
+        ghostscript=ghostscript_exe,
+        ocrmypdf=ocrmypdf_exe,
+        tesseract=tesseract_exe,
+        pngquant=pngquant_exe,
+    )
 
 def is_pdf_locked(path: Path) -> bool:
     """Return True if print/copy is restricted or PDF is encrypted."""
@@ -188,10 +229,10 @@ def is_pdf_locked(path: Path) -> bool:
         logging.error(f"Permission check failed for {path.name}: {exc}")
         return False
 
-def unlock_pdf(src: str, dst: str) -> None:
+def unlock_pdf(src: str, dst: str, tools: RuntimeTools) -> None:
     """Re-write PDF with Ghostscript to remove restrictions."""
     logging.info(f"🔓 Unlocking via Ghostscript: {src}")
-    cmd = [GHOSTSCRIPT_EXE, "-o", dst, "-sDEVICE=pdfwrite",
+    cmd = [tools.ghostscript, "-o", dst, "-sDEVICE=pdfwrite",
            "-dPDFSETTINGS=/default", src]
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=GS_TIMEOUT_SECS, encoding='utf-8')
@@ -206,10 +247,10 @@ def unlock_pdf(src: str, dst: str) -> None:
 
 
 
-def ocr_pdf(src: str, dst: str) -> tuple[bool, str | None]:
+def ocr_pdf(src: str, dst: str, tools: RuntimeTools) -> tuple[bool, str | None]:
     """Run OCRmyPDF with size-optimized settings and clear logging."""
     cmd = [
-        OCR_MY_PDF_EXE,
+        tools.ocrmypdf,
         "--skip-text",          # only OCR pages without an existing text layer
         "--optimize", "3",
         "--jpeg-quality", "40",
@@ -315,8 +356,8 @@ def _process_one_pdf(
     output_dir: Path,
     archive_dir: Path,
     temp_dir: Path,
-    results: list[dict] | None = None,
-) -> None:
+    tools: RuntimeTools,
+) -> ProcessResult:
     """Core logic to unlock, OCR, and archive a single PDF."""
     start_time = time.monotonic()
     success = False
@@ -334,64 +375,59 @@ def _process_one_pdf(
         work_file = source_path
         try:
             if is_pdf_locked(source_path):
-                unlock_pdf(str(source_path), str(unlocked_pdf))
+                unlock_pdf(str(source_path), str(unlocked_pdf), tools)
                 work_file = unlocked_pdf
                 unlocked = True
             else:
                 logging.info(f"PDF '{source_path.name}' not locked; skipping unlock step")
 
-            ocr_ok, ocr_err = ocr_pdf(str(work_file), str(final_ocr_pdf))
+            ocr_ok, ocr_err = ocr_pdf(str(work_file), str(final_ocr_pdf), tools)
             if not ocr_ok:
                 error = ocr_err or "OCR failed"
                 logging.error(f"OCR step failed for {source_path.name}: {error}")
                 if final_ocr_pdf.exists():
                     final_ocr_pdf.unlink()
-                return
+            else:
+                if not add_page_numbers(final_ocr_pdf):
+                    logging.warning(f"Could not add page numbers to {final_ocr_pdf.name}, but continuing.")
 
-            if not add_page_numbers(final_ocr_pdf):
-                logging.warning(f"Could not add page numbers to {final_ocr_pdf.name}, but continuing.")
+                try:
+                    with fitz.open(str(final_ocr_pdf)) as doc:
+                        pages = len(doc)
+                except Exception as exc:
+                    logging.warning(f"Could not count pages for {final_ocr_pdf.name}: {exc}")
 
-            try:
-                with fitz.open(str(final_ocr_pdf)) as doc:
-                    pages = len(doc)
-            except Exception as exc:
-                logging.warning(f"Could not count pages for {final_ocr_pdf.name}: {exc}")
+                preserve_modified_time(final_ocr_pdf, source_stat)
 
-            preserve_modified_time(final_ocr_pdf, source_stat)
-
-            archived_path = archive_original(source_path, archive_dir)
-            logging.info(f"Original '{source_path.name}' moved to {archived_path.parent}")
-            success = True
+                archived_path = archive_original(source_path, archive_dir)
+                logging.info(f"Original '{source_path.name}' moved to {archived_path.parent}")
+                success = True
         except Exception as exc:
             error = str(exc)
             logging.error(f"Failed on {source_path.name}: {exc}")
-        finally:
-            duration = time.monotonic() - start_time
-            status_label = "OK" if success else "FAIL"
-            logging.info(
-                f"Summary [{status_label}] {source_path.name} | pages={pages if pages is not None else '?'} | "
-                f"unlocked={'yes' if unlocked else 'no'} | time={duration:.1f}s"
-            )
-            if results is not None:
-                results.append(
-                    {
-                        "file": source_path.name,
-                        "status": "ok" if success else "failed",
-                        "pages": pages,
-                        "duration_s": duration,
-                        "unlocked": unlocked,
-                        "error": error,
-                    }
-                )
+
+    duration = time.monotonic() - start_time
+    status_label = "OK" if success else "FAIL"
+    logging.info(
+        f"Summary [{status_label}] {source_path.name} | pages={pages if pages is not None else '?'} | "
+        f"unlocked={'yes' if unlocked else 'no'} | time={duration:.1f}s"
+    )
+    return ProcessResult(
+        file=source_path.name,
+        status="ok" if success else "failed",
+        pages=pages,
+        duration_s=duration,
+        unlocked=unlocked,
+        error=error,
+    )
 
 
-
-def log_run_summary(results: list[dict]) -> None:
+def log_run_summary(results: list[ProcessResult]) -> None:
     """Log a concise summary for a run."""
     if not results:
         return
     total = len(results)
-    failures = [r for r in results if r.get("status") != "ok"]
+    failures = [r for r in results if r.status != "ok"]
     logging.info(
         "Run summary: %s file(s) | succeeded=%s | failed=%s",
         total,
@@ -399,37 +435,36 @@ def log_run_summary(results: list[dict]) -> None:
         len(failures),
     )
     for r in results:
-        err_text = f" | error={r['error']}" if r.get('error') else ""
-        pages = r.get("pages")
+        err_text = f" | error={r.error}" if r.error else ""
+        pages = r.pages
         logging.info(
             "  [%s] %s | pages=%s | unlocked=%s | time=%.1fs%s",
-            r.get("status", "?").upper(),
-            r.get("file", ""),
+            r.status.upper(),
+            r.file,
             pages if pages is not None else "?",
-            "yes" if r.get("unlocked") else "no",
-            r.get("duration_s", 0.0),
+            "yes" if r.unlocked else "no",
+            r.duration_s,
             err_text,
         )
 
 # ---------- Mode-specific Wrappers ----------
 
 
-def process_single(file_path: Path) -> None:
+def process_single(file_path: Path, tools: RuntimeTools) -> None:
     """Process one PDF in place and archive original."""
     base_dir = file_path.parent
     originals = base_dir / "Originals"
-    results: list[dict] = []
-    _process_one_pdf(file_path, base_dir, originals, base_dir, results)
-    log_run_summary(results)
+    result = _process_one_pdf(file_path, base_dir, originals, base_dir, tools)
+    log_run_summary([result])
 
 
-def process_batch() -> None:
+def process_batch(config: AppConfig, tools: RuntimeTools) -> None:
     """Process all PDFs inside SOURCE_DIR."""
-    if not SOURCE_DIR.is_dir():
-        logging.error(f"Source directory not found: {SOURCE_DIR!s}")
+    if not config.source_dir.is_dir():
+        logging.error(f"Source directory not found: {config.source_dir!s}")
         return
 
-    pdfs = list(SOURCE_DIR.glob("*.pdf"))
+    pdfs = list(config.source_dir.glob("*.pdf"))
 
     if not pdfs:
         logging.info("No PDFs found - nothing to do.")
@@ -437,20 +472,35 @@ def process_batch() -> None:
 
     logging.info(f"Found {len(pdfs)} PDF(s): {[p.name for p in pdfs]}")
 
-    results: list[dict] = []
+    results: list[ProcessResult] = []
     for idx, path in enumerate(pdfs, 1):
         logging.info(f"[{idx}/{len(pdfs)}] {path.name}")
         try:
-            _process_one_pdf(path, COMPLETE_DIR, PROCESSED_DIR, SOURCE_DIR, results)
+            results.append(_process_one_pdf(path, config.complete_dir, config.processed_dir, config.source_dir, tools))
         except Exception as exc:
             logging.error(f"Failed on {path.name}: {exc}")
+            results.append(
+                ProcessResult(
+                    file=path.name,
+                    status="failed",
+                    pages=None,
+                    duration_s=0.0,
+                    unlocked=False,
+                    error=str(exc),
+                )
+            )
     log_run_summary(results)
 
 # ---------- Main dispatcher ----------
 def main() -> None:
+    config = build_config()
+    ensure_runtime_dirs(config)
+    configure_logging(config)
+
     logging.info("🚀 PDF Automation start (v6)")
 
-    if not check_dependencies():
+    tools = check_dependencies(config)
+    if tools is None:
         return  # Exit if dependencies are not met
 
     args = sys.argv[1:]
@@ -460,14 +510,14 @@ def main() -> None:
         for p in pdf_args:
             if p.is_file():
                 logging.info(f"Single-file mode on: {p!s}")
-                process_single(p.resolve())
+                process_single(p.resolve(), tools)
             else:
                 logging.error(f"File not found: {p!s}")
     elif args:
         logging.error("No valid PDF files found in arguments.")
     else:
         # No args → legacy batch mode
-        process_batch()
+        process_batch(config, tools)
 
     logging.info("🏁 Finished")
 

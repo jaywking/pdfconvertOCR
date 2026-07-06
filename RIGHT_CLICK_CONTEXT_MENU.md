@@ -61,7 +61,7 @@ install_right_click_context.bat
 That batch file runs `install_right_click_context.ps1` with `-ExecutionPolicy Bypass`. The PowerShell installer:
 
 1. Confirms the expected project files exist.
-2. Runs `bootstrap.ps1` to create or repair `C:\LocalVenvs\pdfconvert`.
+2. Runs `bootstrap.ps1` to create or repair `C:\LocalVenvs\pdfconvertOCR`.
 3. Creates the Explorer PDF shell verb under the current user's registry hive.
 4. Points that shell verb at this repo's `run_single_pdf.bat`.
 
@@ -86,7 +86,7 @@ Windows Registry Editor Version 5.00
 "MultiSelectModel"="Document"
 
 [HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command]
-@="\"C:\\Utils\\pdfconvert\\run_single_pdf.bat\" \"%L\""
+@="\"C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat\" \"%L\""
 ```
 
 What each part does:
@@ -103,18 +103,18 @@ What each part does:
 When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
 
 ```bat
-"C:\Utils\pdfconvert\run_single_pdf.bat" "C:\path\to\selected.pdf"
+"C:\Utils\pdfconvertOCR\run_single_pdf.bat" "C:\path\to\selected.pdf"
 ```
 
 `run_single_pdf.bat` then:
 
 1. Sets the project root from the batch file location.
-2. Looks for `C:\LocalVenvs\pdfconvert\Scripts\python.exe`.
+2. Looks for `C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe`.
 3. Runs `bootstrap.ps1` if that Python executable does not exist.
 4. Calls the main script with the selected PDF path:
 
 ```bat
-"C:\LocalVenvs\pdfconvert\Scripts\python.exe" "C:\Utils\pdfconvert\pdf_automation_v6.1.py" "C:\path\to\selected.pdf"
+"C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe" "C:\Utils\pdfconvertOCR\pdf_automation_v6.1.py" "C:\path\to\selected.pdf"
 ```
 
 ## Python entry point
@@ -132,7 +132,7 @@ When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
 
 From Explorer:
 
-1. Open `C:\Utils\pdfconvert`.
+1. Open `C:\Utils\pdfconvertOCR`.
 2. Double-click `install_right_click_context.bat`.
 3. Wait for the setup window to report completion.
 4. Right-click a PDF and choose `Convert to OCR (v6.1)`.
@@ -140,15 +140,15 @@ From Explorer:
 Manual registry-only install from an elevated terminal:
 
 ```bat
-reg import C:\Utils\pdfconvert\registry\add_OCR_context_v6.1.reg
+reg import C:\Utils\pdfconvertOCR\registry\add_OCR_context_v6.1.reg
 ```
 
 ## Updating the implementation
 
 If the project moves, update these hard-coded paths:
 
-- `registry/add_OCR_context_v6.1.reg`: `C:\\Utils\\pdfconvert\\run_single_pdf.bat`
-- `run_single_pdf.bat`: source-checkout fallback path `C:\LocalVenvs\pdfconvert\Scripts\python.exe`
+- `registry/add_OCR_context_v6.1.reg`: `C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat`
+- `run_single_pdf.bat`: source-checkout fallback path `C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe`
 - `installer/PDFConvertOCR.iss`: packaged install metadata, output name, registry command, and installed file list
 
 If the visible menu label changes, update the registry default value:
@@ -193,7 +193,7 @@ After importing a removal file, restart Explorer or sign out and back in if the 
 
 - If the menu item does not appear, confirm the `.reg` file imported successfully and that it was imported with sufficient permissions.
 - If clicking the menu item opens a terminal and fails, run `run_single_pdf.bat "C:\path\to\file.pdf"` manually to see the error.
-- If the batch file cannot find Python, run `powershell -ExecutionPolicy Bypass -File C:\Utils\pdfconvert\bootstrap.ps1`.
+- If the batch file cannot find Python, run `powershell -ExecutionPolicy Bypass -File C:\Utils\pdfconvertOCR\bootstrap.ps1`.
 - If a packaged install cannot find Python packages, for example `ModuleNotFoundError: No module named 'fitz'`, rerun the installer or run `setup_installed_app.ps1` from the install folder. The setup script bootstraps `pip` with `ensurepip` when needed, then reinstalls packages from `vendor\wheelhouse`.
 - If OCRmyPDF reports `Could not find program 'pngquant' on the PATH` from a source checkout, run `choco install pngquant -y` from an elevated PowerShell window.
 - If paths contain spaces, keep every `%L`, `%1`, script path, and PDF path wrapped in quotes.

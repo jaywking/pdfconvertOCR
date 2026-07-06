@@ -3,7 +3,7 @@ setlocal
 
 set "ROOT=%~dp0"
 set "INSTALLED_PYTHON_EXE=%ROOT%python\python.exe"
-set "SOURCE_PYTHON_EXE=C:\LocalVenvs\pdfconvert\Scripts\python.exe"
+set "SOURCE_PYTHON_EXE=C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe"
 
 if exist "%ROOT%vendor\ghostscript\bin" set "PATH=%ROOT%vendor\ghostscript\bin;%PATH%"
 if exist "%ROOT%vendor\tesseract" set "PATH=%ROOT%vendor\tesseract;%PATH%"

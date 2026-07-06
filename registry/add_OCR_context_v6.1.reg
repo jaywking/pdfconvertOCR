@@ -6,4 +6,4 @@ Windows Registry Editor Version 5.00
 "MultiSelectModel"="Document"
 
 [HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command]
-@="\"C:\\Utils\\pdfconvert\\run_single_pdf.bat\" \"%L\""
+@="\"C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat\" \"%L\""

@@ -40,11 +40,11 @@ The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the so
 - **Tesseract OCR**: External executable. OCRmyPDF needs it for OCR work.
 - **pngquant**: External executable. OCRmyPDF needs it when this script uses `--optimize 3`.
 - Python packages from `requirements.txt`.
-- Use the project virtual environment (`C:\LocalVenvs\pdfconvert`) when running the script.
+- Use the project virtual environment (`C:\LocalVenvs\pdfconvertOCR`) when running the script.
 
 Create or repair the source-checkout Python environment:
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvert\bootstrap.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1"
 ```
 
 Install the external `pngquant` executable globally with Chocolatey if you are not using the packaged installer:
@@ -110,7 +110,7 @@ ocrmypdf.exe --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --desk
 
 ### Dependency Resolution
 - The script checks for Ghostscript, Tesseract, pngquant, and OCRmyPDF before processing.
-- The script prefers `ocrmypdf.exe` from the **active Python environment** first (for example `C:\LocalVenvs\pdfconvert\Scripts\ocrmypdf.exe` or an installed `python\Scripts\ocrmypdf.exe`) before searching system PATH.
+- The script prefers `ocrmypdf.exe` from the **active Python environment** first (for example `C:\LocalVenvs\pdfconvertOCR\Scripts\ocrmypdf.exe` or an installed `python\Scripts\ocrmypdf.exe`) before searching system PATH.
 - This prevents global/user Python package conflicts from breaking OCR when the project venv is healthy.
 - Packaged installs prepend bundled runtime folders to PATH so OCRmyPDF can launch Ghostscript, Tesseract, and pngquant.
 

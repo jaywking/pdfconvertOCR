@@ -4,7 +4,7 @@ This project implements the Explorer right-click action with these pieces:
 
 1. A Windows Registry shell verb for `.pdf` files.
 2. A batch wrapper that receives the selected PDF path from Explorer.
-3. The Python script's single-file mode.
+3. The Python script's single-file mode and conversion-options prompt.
 4. Runtime tools available either globally or from the packaged install's `vendor\` folder.
 
 ## Files involved
@@ -47,7 +47,8 @@ The installed tool is intentionally used from Explorer, not from a standalone ap
 
 1. Open the folder containing their PDF.
 2. Right-click the PDF.
-3. Choose **Convert to OCR (v6.1)**.
+3. Choose **Convert to OCR (v6.1)**, select a quality preset and installed OCR
+   language in the prompt, then start conversion.
 
 The installer includes `HOW_TO_USE.txt` and a Start Menu shortcut named **How to use PDFConvertOCR** for these short instructions.
 
@@ -112,7 +113,8 @@ When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
 1. Sets the project root from the batch file location.
 2. Looks for `C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe`.
 3. Runs `bootstrap.ps1` if that Python executable does not exist.
-4. Calls the main script with the selected PDF path:
+4. Calls the main script with the selected PDF path. The script displays the
+   conversion-only options prompt before it creates output or moves originals:
 
 ```bat
 "C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe" "C:\Utils\pdfconvertOCR\pdf_automation_v6.1.py" "C:\path\to\selected.pdf"
@@ -125,7 +127,7 @@ When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
 - If one or more arguments end in `.pdf`, it treats them as selected files.
 - Each valid file is passed to `process_single()`.
 - `process_single()` writes the OCR output next to the original as `<name>_OCR.pdf`.
-- The output PDF's Modified Date is set to match the source PDF after OCR and page numbering complete.
+- The output PDF's Modified Date is set to match the source PDF after OCR and page numbering complete. The Archival PDF/A preset intentionally omits page numbers so the OCRmyPDF-generated archival output is not modified afterward.
 - The original file is moved into an `Originals` folder next to the selected PDF.
 - If no PDF arguments are provided, the script falls back to batch mode.
 

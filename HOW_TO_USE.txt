@@ -7,7 +7,8 @@ To convert a PDF:
 1. Open the folder that contains the PDF.
 2. Right-click the PDF file.
 3. Choose "Convert to OCR (v6.1)".
-4. Wait for the conversion window to finish.
+4. Choose a quality preset and OCR language in the options window, then wait
+   for the conversion window to finish.
 
 What happens:
 
@@ -15,7 +16,22 @@ What happens:
 - The new file is named like:
   OriginalFileName_OCR.pdf
 - The new file keeps the same Modified Date as the original PDF.
-- The original PDF is moved into an "Originals" folder next to the PDF.
+- The original PDF is moved into an "Originals" folder next to the PDF only
+  after the output has been verified.
+- Existing `*_OCR.pdf` files are never overwritten. A new output uses `(1)`,
+  `(2)`, and so on when needed.
+
+Quality presets:
+
+- Standard: balanced PDF output with deskew.
+- Straighten and rotate: Standard plus automatic page rotation.
+- Small file: smaller output with more JPEG compression.
+- Archival PDF/A: OCRmyPDF-generated archival output; it does not add page
+  numbers and is not independently PDF/A certified by this app.
+
+English is selected by default. Other languages appear only when their
+Tesseract language pack is already installed. You can select more than one
+language for mixed-language documents.
 
 You can select more than one PDF, right-click, and choose "Convert to OCR (v6.1)" to process multiple files.
 

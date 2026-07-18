@@ -31,7 +31,7 @@ PDFConvertOCR runs from Windows File Explorer. It does not open as a normal desk
 3. Choose **Convert to OCR (v6.1)**.
 4. Wait for the conversion window to finish.
 
-The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the source file's Modified Date, and moves the original into an `Originals\` folder.
+The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the source file's Modified Date, and moves the original into an `Originals\` folder only after the output is fully verified.
 
 ## Source Checkout Requirements
 - Windows 10 or 11
@@ -59,9 +59,66 @@ This is the recommended way to use the tool.
 1.  **Install Dependencies**: Make sure Ghostscript, Tesseract, and pngquant are installed on your system, or use the packaged installer.
 2.  **Add Context Menu**: Double-click `install_right_click_context.bat`. This prepares the Python environment and adds the "Convert to OCR (v6.1)" option to your right-click menu for PDF files.
 3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.1)**.
-4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory with the original file's Modified Date, and the original file will be moved into a new `Originals` subfolder.
+4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory with the original file's Modified Date. Only after that output is verified will the original be moved into a new `Originals` subfolder.
 
 For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
+
+## Output Safety and Original Handling
+
+PDFConvertOCR never overwrites an existing OCR output. If `Report_OCR.pdf`
+already exists, the next conversion produces `Report_OCR (1).pdf` (then `(2)`,
+and so on). Output is written to a temporary staging file, validated, and only
+then published. If OCR, page numbering, or validation fails, the original and
+existing outputs are left untouched.
+
+Explorer right-click conversion keeps the default behavior: after a verified
+output is published, the source PDF is moved into `Originals\` with a unique
+archive name. For command-line use, choose a different source-file policy:
+
+```powershell
+# Default: move the source into Originals after verification
+python .\pdf_automation_v6.1.py "C:\Docs\Report.pdf"
+
+# Keep the source where it is
+python .\pdf_automation_v6.1.py --original-action keep "C:\Docs\Report.pdf"
+
+# Copy the source into Originals while retaining the source in place
+python .\pdf_automation_v6.1.py --original-action copy "C:\Docs\Report.pdf"
+```
+
+Valid values for `--original-action` are `move`, `copy`, and `keep`.
+
+## OCR Quality and Language Options
+
+When you start a conversion from File Explorer, PDFConvertOCR shows a small
+conversion-options prompt before any files are changed. Choose one quality
+preset and one or more installed OCR languages:
+
+- **Standard:** the existing balanced conversion: deskew, optimized PDF, and
+  JPEG quality 40.
+- **Straighten and rotate:** Standard plus automatic page-orientation
+  correction.
+- **Small file:** Standard processing with JPEG quality 25 for smaller output.
+- **Archival PDF/A:** OCRmyPDF-generated PDF/A output for archival workflows.
+  It intentionally omits page numbers so the archival output is not modified
+  afterward. PDFConvertOCR does not independently certify PDF/A conformance.
+
+English is selected by default. The prompt lists language packs detected from
+the installed Tesseract runtime; select more than one when a document mixes
+languages. The packaged installer includes English and orientation data only.
+Additional packs must already be installed with Tesseract.
+
+For non-interactive command-line or batch use, suppress the prompt and select
+the same options explicitly:
+
+```powershell
+python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset straighten-rotate --language eng "C:\Docs\Scan.pdf"
+python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset small-file --language eng "C:\Docs\Scan.pdf"
+python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset archival-pdfa --language eng "C:\Docs\Archive.pdf"
+```
+
+Use `--language eng+fra` for multiple installed language packs. Batch mode is
+non-interactive and defaults to Standard with English unless options are given.
 
 ## Core Files
 - `app_metadata.json`: The shared source of truth for app version, Explorer menu label, registry verb, runner script, and main script names.
@@ -106,12 +163,15 @@ gswin64c.exe -o unlocked.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/default input.pdf
 ### OCR with Compression
 OCR is performed with OCRmyPDF using settings that preserve text quality and reduce size:
 ```
-ocrmypdf.exe --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --deskew input.pdf output.pdf
+ocrmypdf.exe -l eng --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --deskew input.pdf output.pdf
 ```
 - `--skip-text` OCRs only pages that do not already have text.
 - `--optimize 3` and `--jpeg-quality 40` prioritize smaller output size.
 - `--optimize 3` requires the external `pngquant.exe` program; it is not a Python package and does not belong in `requirements.txt`.
 - `--output-type pdf` writes standard searchable PDF output.
+- **Straighten and rotate** adds `--rotate-pages`; **Small file** changes JPEG
+  quality to 25; **Archival PDF/A** uses `--output-type pdfa` and skips page
+  numbering to avoid modifying that output afterward.
 
 ### Dependency Resolution
 - The script checks for Ghostscript, Tesseract, pngquant, and OCRmyPDF before processing.

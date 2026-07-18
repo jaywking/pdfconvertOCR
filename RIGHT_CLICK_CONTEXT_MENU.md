@@ -9,14 +9,14 @@ This project implements the Explorer right-click action with these pieces:
 
 ## Files involved
 
-- `registry/add_OCR_context_v6.1.reg` adds the Explorer menu item.
+- `registry/add_OCR_context_v6.2.reg` adds the Explorer menu item.
 - `app_metadata.json` is the source of truth for the app version, menu label, registry verb, runner script, and main script names used by the install/build scripts.
 - `install_right_click_context.bat` is the double-click installer for the Explorer menu item.
 - `install_right_click_context.ps1` bootstraps the project and writes the user-level registry keys.
 - `uninstall_right_click_context.bat` removes the Explorer menu item.
 - `run_single_pdf.bat` is the command Explorer runs.
 - `bootstrap.ps1` creates or repairs the centralized virtual environment if it is missing.
-- `pdf_automation_v6.1.py` processes the selected PDF when given a PDF path argument.
+- `pdf_automation_v6.2.py` processes the selected PDF when given a PDF path argument.
 - `setup_installed_app.ps1` prepares the bundled Python runtime during packaged installs and can repair missing `pip` or Python packages from the bundled wheelhouse.
 - `installer/PDFConvertOCR.iss` creates the per-user Windows installer.
 
@@ -25,7 +25,7 @@ This project implements the Explorer right-click action with these pieces:
 For non-technical users, the preferred path is the Inno Setup installer:
 
 ```text
-PDFConvertOCR-Setup-v6.1.1.exe
+PDFConvertOCR-Setup-v6.2.0.exe
 ```
 
 That installer copies the app to:
@@ -47,7 +47,7 @@ The installed tool is intentionally used from Explorer, not from a standalone ap
 
 1. Open the folder containing their PDF.
 2. Right-click the PDF.
-3. Choose **Convert to OCR (v6.1)**, select a quality preset and installed OCR
+3. Choose **Convert to OCR (v6.2)**, select a quality preset and installed OCR
    language in the prompt, then start conversion.
 
 The installer includes `HOW_TO_USE.txt` and a Start Menu shortcut named **How to use PDFConvertOCR** for these short instructions.
@@ -70,31 +70,31 @@ That batch file runs `install_right_click_context.ps1` with `-ExecutionPolicy By
 The installer uses this user-level registry path:
 
 ```text
-HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1
+HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2
 ```
 
 Using `HKCU` keeps the install scoped to the current Windows user and usually avoids needing an elevated terminal. The source-checkout installer still expects dependencies to be installed globally or available through `bootstrap.ps1`.
 
 ## Manual registry verb
 
-The older/manual install path is to import `registry/add_OCR_context_v6.1.reg`:
+The older/manual install path is to import `registry/add_OCR_context_v6.2.reg`:
 
 ```reg
 Windows Registry Editor Version 5.00
 
-[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1]
-@="Convert to OCR (v6.1)"
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2]
+@="Convert to OCR (v6.2)"
 "Icon"="C:\\Windows\\System32\\imageres.dll,-5302"
 "MultiSelectModel"="Document"
 
-[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1\command]
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2\command]
 @="\"C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat\" \"%L\""
 ```
 
 What each part does:
 
-- `HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1` registers a shell command for PDF files.
-- The default value, `Convert to OCR (v6.1)`, is the label shown in Explorer.
+- `HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2` registers a shell command for PDF files.
+- The default value, `Convert to OCR (v6.2)`, is the label shown in Explorer.
 - `Icon` chooses the icon shown next to the menu item.
 - `MultiSelectModel=Document` allows the command to appear when multiple PDF documents are selected.
 - The `command` default value is the executable command Explorer runs.
@@ -102,7 +102,7 @@ What each part does:
 
 ## Command flow
 
-When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
+When a user selects a PDF and chooses `Convert to OCR (v6.2)`, Explorer runs:
 
 ```bat
 "C:\Utils\pdfconvertOCR\run_single_pdf.bat" "C:\path\to\selected.pdf"
@@ -117,12 +117,12 @@ When a user selects a PDF and chooses `Convert to OCR (v6.1)`, Explorer runs:
    conversion-only options prompt before it creates output or moves originals:
 
 ```bat
-"C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe" "C:\Utils\pdfconvertOCR\pdf_automation_v6.1.py" "C:\path\to\selected.pdf"
+"C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe" "C:\Utils\pdfconvertOCR\pdf_automation_v6.2.py" "C:\path\to\selected.pdf"
 ```
 
 ## Python entry point
 
-`pdf_automation_v6.1.py` checks command-line arguments in `main()`:
+`pdf_automation_v6.2.py` checks command-line arguments in `main()`:
 
 - If one or more arguments end in `.pdf`, it treats them as selected files.
 - Each valid file is passed to `process_single()`.
@@ -138,26 +138,26 @@ From Explorer:
 1. Open `C:\Utils\pdfconvertOCR`.
 2. Double-click `install_right_click_context.bat`.
 3. Wait for the setup window to report completion.
-4. Right-click a PDF and choose `Convert to OCR (v6.1)`.
+4. Right-click a PDF and choose `Convert to OCR (v6.2)`.
 
 Manual registry-only install from an elevated terminal:
 
 ```bat
-reg import C:\Utils\pdfconvertOCR\registry\add_OCR_context_v6.1.reg
+reg import C:\Utils\pdfconvertOCR\registry\add_OCR_context_v6.2.reg
 ```
 
 ## Updating the implementation
 
 If the project moves, update these hard-coded paths:
 
-- `registry/add_OCR_context_v6.1.reg`: `C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat`
+- `registry/add_OCR_context_v6.2.reg`: `C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat`
 - `run_single_pdf.bat`: source-checkout fallback path `C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe`
 - `installer/PDFConvertOCR.iss`: packaged install metadata, output name, registry command, and installed file list
 
 If the visible menu label changes, update the registry default value:
 
 ```reg
-@="Convert to OCR (v6.1)"
+@="Convert to OCR (v6.2)"
 ```
 
 If the command key name changes, use the same key name for both the verb and its `command` subkey.
@@ -173,13 +173,13 @@ uninstall_right_click_context.bat
 The current installer creates this key:
 
 ```reg
-HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1
+HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2
 ```
 
 The manual `.reg` add file creates this key:
 
 ```reg
-HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1
+HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2
 ```
 
 A matching removal file should delete that same key:
@@ -187,7 +187,7 @@ A matching removal file should delete that same key:
 ```reg
 Windows Registry Editor Version 5.00
 
-[-HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1]
+[-HKEY_CLASSES_ROOT\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2]
 ```
 
 After importing a removal file, restart Explorer or sign out and back in if the menu item still appears.

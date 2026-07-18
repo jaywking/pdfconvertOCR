@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pdf_automation_v6.py
+# pdf_automation_v6.2.py
 # ------------------------------------------------------------
 # Dual-mode PDF unlock + OCR tool
 #  • Batch: run without args – processes every .pdf in SOURCE_DIR

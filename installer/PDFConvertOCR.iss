@@ -2,22 +2,22 @@
 #define MyAppName "PDFConvertOCR"
 #endif
 #ifndef MyAppVersion
-#define MyAppVersion "6.1.1"
+#define MyAppVersion "6.2.0"
 #endif
 #ifndef MyDisplayVersion
-#define MyDisplayVersion "6.1"
+#define MyDisplayVersion "6.2"
 #endif
 #ifndef MyMenuLabel
-#define MyMenuLabel "Convert to OCR (v6.1)"
+#define MyMenuLabel "Convert to OCR (v6.2)"
 #endif
 #ifndef MyContextVerb
-#define MyContextVerb "ConvertToOCRv6.1"
+#define MyContextVerb "ConvertToOCRv6.2"
 #endif
 #ifndef MyAppPublisher
 #define MyAppPublisher "jaywking"
 #endif
 #ifndef MyMainScript
-#define MyMainScript "pdf_automation_v6.1.py"
+#define MyMainScript "pdf_automation_v6.2.py"
 #endif
 #ifndef MyRunnerScript
 #define MyRunnerScript "run_single_pdf.bat"
@@ -73,6 +73,16 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyCont
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueName: "Icon"; ValueData: "{sys}\imageres.dll,-5302"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Document"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}\command"; ValueType: string; ValueData: """{app}\{#MyRunnerScript}"" ""%L"""; Flags: uninsdeletekey
+
+[Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    { Prevent a v6.1-to-v6.2 upgrade from leaving two Explorer menu entries. }
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1');
+  end;
+end;
 
 [Icons]
 Name: "{group}\PDFConvertOCR install folder"; Filename: "{app}"

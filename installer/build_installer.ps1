@@ -8,6 +8,9 @@ $ErrorActionPreference = "Stop"
 if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
     $PSNativeCommandUseErrorActionPreference = $true
 }
+if (Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue) {
+    $PSNativeCommandArgumentPassing = "Standard"
+}
 
 $InstallerRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $InstallerRoot
@@ -82,7 +85,9 @@ function New-IsccStringDefine {
         [string]$Value
     )
 
-    return ('/D{0}="{1}"' -f $Name, ($Value -replace '"', '\"'))
+    # Each array entry is already one native argument. Do not embed shell
+    # quotes here: ISCC otherwise parses spaced values as extra script names.
+    return ('/D{0}={1}' -f $Name, $Value)
 }
 
 New-Item -ItemType Directory -Path $VendorRoot, $CacheRoot, $DistRoot -Force | Out-Null

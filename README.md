@@ -1,4 +1,4 @@
-# PDF Automation (Unlock + OCR) — v6.1
+# PDF Automation (Unlock + OCR) — v6.2
 
 A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware compression, adds page numbers, and preserves useful file sorting dates. It supports both batch processing and a right-click Explorer action.
 
@@ -16,9 +16,9 @@ A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware c
 
 For coworkers and non-technical users, use the packaged Windows installer from GitHub Releases:
 
-1. Download `PDFConvertOCR-Setup-v6.1.1.exe`.
+1. Download `PDFConvertOCR-Setup-v6.2.0.exe`.
 2. Double-click the installer.
-3. Right-click a PDF and choose **Convert to OCR (v6.1)**.
+3. Right-click a PDF and choose **Convert to OCR (v6.2)**.
 
 The installer is designed to install per-user under `%LOCALAPPDATA%\PDFConvertOCR`, bundle the OCR runtime tools, and create the right-click menu automatically.
 
@@ -28,7 +28,7 @@ PDFConvertOCR runs from Windows File Explorer. It does not open as a normal desk
 
 1. Open the folder that contains the PDF.
 2. Right-click the PDF file.
-3. Choose **Convert to OCR (v6.1)**.
+3. Choose **Convert to OCR (v6.2)**.
 4. Wait for the conversion window to finish.
 
 The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the source file's Modified Date, and moves the original into an `Originals\` folder only after the output is fully verified.
@@ -57,8 +57,8 @@ choco install pngquant -y
 This is the recommended way to use the tool.
 
 1.  **Install Dependencies**: Make sure Ghostscript, Tesseract, and pngquant are installed on your system, or use the packaged installer.
-2.  **Add Context Menu**: Double-click `install_right_click_context.bat`. This prepares the Python environment and adds the "Convert to OCR (v6.1)" option to your right-click menu for PDF files.
-3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.1)**.
+2.  **Add Context Menu**: Double-click `install_right_click_context.bat`. This prepares the Python environment and adds the "Convert to OCR (v6.2)" option to your right-click menu for PDF files.
+3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.2)**.
 4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory with the original file's Modified Date. Only after that output is verified will the original be moved into a new `Originals` subfolder.
 
 For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
@@ -77,13 +77,13 @@ archive name. For command-line use, choose a different source-file policy:
 
 ```powershell
 # Default: move the source into Originals after verification
-python .\pdf_automation_v6.1.py "C:\Docs\Report.pdf"
+python .\pdf_automation_v6.2.py "C:\Docs\Report.pdf"
 
 # Keep the source where it is
-python .\pdf_automation_v6.1.py --original-action keep "C:\Docs\Report.pdf"
+python .\pdf_automation_v6.2.py --original-action keep "C:\Docs\Report.pdf"
 
 # Copy the source into Originals while retaining the source in place
-python .\pdf_automation_v6.1.py --original-action copy "C:\Docs\Report.pdf"
+python .\pdf_automation_v6.2.py --original-action copy "C:\Docs\Report.pdf"
 ```
 
 Valid values for `--original-action` are `move`, `copy`, and `keep`.
@@ -112,9 +112,9 @@ For non-interactive command-line or batch use, suppress the prompt and select
 the same options explicitly:
 
 ```powershell
-python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset straighten-rotate --language eng "C:\Docs\Scan.pdf"
-python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset small-file --language eng "C:\Docs\Scan.pdf"
-python .\pdf_automation_v6.1.py --no-options-prompt --quality-preset archival-pdfa --language eng "C:\Docs\Archive.pdf"
+python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset straighten-rotate --language eng "C:\Docs\Scan.pdf"
+python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset small-file --language eng "C:\Docs\Scan.pdf"
+python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset archival-pdfa --language eng "C:\Docs\Archive.pdf"
 ```
 
 Use `--language eng+fra` for multiple installed language packs. Batch mode is
@@ -122,14 +122,14 @@ non-interactive and defaults to Standard with English unless options are given.
 
 ## Core Files
 - `app_metadata.json`: The shared source of truth for app version, Explorer menu label, registry verb, runner script, and main script names.
-- `pdf_automation_v6.1.py`: The main Python script containing all the logic.
+- `pdf_automation_v6.2.py`: The main Python script containing all the logic.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
 - `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
 - `setup_installed_app.ps1`: Post-install setup and repair script used by the packaged Windows installer.
 - `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
-- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.1.1.exe`.
-- `registry/add_OCR_context_v6.1.reg`: The registry file for creating the right-click context menu item.
+- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.2.0.exe`.
+- `registry/add_OCR_context_v6.2.reg`: The registry file for creating the right-click context menu item.
 - `archives/`: Contains archived scripts and logs from previous versions.
 
 ## Building the Windows Installer
@@ -143,7 +143,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.
 The build script prepares an offline vendor payload from the local build machine and writes:
 
 ```text
-dist\PDFConvertOCR-Setup-v6.1.1.exe
+dist\PDFConvertOCR-Setup-v6.2.0.exe
 ```
 
 `app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.

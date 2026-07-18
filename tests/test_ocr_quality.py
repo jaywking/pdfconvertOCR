@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "pdf_automation_v6.1.py"
+MODULE_PATH = Path(__file__).resolve().parents[1] / "pdf_automation_v6.2.py"
 SPEC = importlib.util.spec_from_file_location("pdf_automation_v6_1_quality", MODULE_PATH)
 app = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = app

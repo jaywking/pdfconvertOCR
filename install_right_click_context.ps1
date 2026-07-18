@@ -31,12 +31,16 @@ Write-Host "Preparing Python environment..."
 & $BootstrapScript
 
 $VerbKey = "HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\$($Metadata.contextVerb)"
+$LegacyVerbKey = "HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1"
 $CommandKey = Join-Path $VerbKey "command"
 $MenuLabel = $Metadata.menuLabel
 $Icon = "C:\Windows\System32\imageres.dll,-5302"
 $Command = ('"{0}" "%L"' -f $RunSinglePdfBat)
 
 Write-Host "Creating Explorer right-click menu entry..."
+if ($LegacyVerbKey -ne $VerbKey -and (Test-Path -LiteralPath $LegacyVerbKey)) {
+    Remove-Item -LiteralPath $LegacyVerbKey -Recurse -Force
+}
 New-Item -Path $VerbKey -Force | Out-Null
 Set-Item -Path $VerbKey -Value $MenuLabel
 New-ItemProperty -Path $VerbKey -Name "Icon" -Value $Icon -PropertyType String -Force | Out-Null

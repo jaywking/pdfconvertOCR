@@ -327,7 +327,10 @@ def prompt_conversion_options(
         import tkinter as tk
         from tkinter import messagebox
     except ImportError as exc:
-        raise RuntimeError("This Python runtime cannot show the conversion options prompt") from exc
+        raise RuntimeError(
+            "This Python runtime cannot show the conversion options prompt; "
+            "reinstall PDFConvertOCR to repair bundled Tcl/Tk support"
+        ) from exc
 
     try:
         root = tk.Tk()

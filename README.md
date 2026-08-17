@@ -153,6 +153,9 @@ dist\PDFConvertOCR-Setup-v6.2.1.exe
 The packaged runtime defaults to Python 3.14.7. The build script derives the
 CPython feature and ABI wheel target from that version, and packaged upgrades
 replace an older bundled Python runtime before installing the offline wheels.
+The offline Python payload includes Tcl/Tk because the Explorer conversion
+options dialog uses `tkinter`; setup verifies that component and repairs it when
+necessary.
 
 Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
 

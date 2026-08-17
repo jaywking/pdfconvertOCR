@@ -88,6 +88,62 @@ function Save-Url {
     Invoke-WebRequest -Uri $Url -OutFile $Destination
 }
 
+function Initialize-PythonOfflineLayout {
+    param(
+        [string]$InstallerPath,
+        [string]$LayoutPath,
+        [string]$Version,
+        [string[]]$RequiredFiles
+    )
+
+    New-Item -ItemType Directory -Path $LayoutPath -Force | Out-Null
+    $missingFiles = @($RequiredFiles | Where-Object { -not (Test-Path (Join-Path $LayoutPath $_)) })
+    if ($missingFiles.Count -gt 0) {
+        Write-Host "Preparing offline Python layout for $Version..."
+        $layoutArgs = @(
+            "/layout",
+            $LayoutPath,
+            "/quiet",
+            "InstallAllUsers=0",
+            "AssociateFiles=0",
+            "PrependPath=0",
+            "Include_dev=0",
+            "Include_doc=0",
+            "Include_launcher=0",
+            "Include_pip=1",
+            "Shortcuts=0",
+            "Include_tcltk=1",
+            "Include_test=0"
+        )
+        $layoutProcess = Start-Process -FilePath $InstallerPath -ArgumentList $layoutArgs -Wait -NoNewWindow -PassThru
+        if ($layoutProcess.ExitCode -ne 0) {
+            throw "Python offline layout failed with exit code $($layoutProcess.ExitCode)."
+        }
+    }
+
+    # The Python bootstrapper can leave already-cached MSI payloads in the
+    # per-user package cache instead of copying them into a new layout.
+    $msiProductVersion = "${Version}150.0"
+    $packageCacheRoot = Join-Path $env:LOCALAPPDATA "Package Cache"
+    foreach ($fileName in $RequiredFiles) {
+        $destination = Join-Path $LayoutPath $fileName
+        if (Test-Path $destination) {
+            continue
+        }
+        $cachedPayload = Get-ChildItem -Path $packageCacheRoot -Filter $fileName -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.Directory.Name -like "*v$msiProductVersion" } |
+            Select-Object -First 1
+        if ($cachedPayload) {
+            Copy-Item -LiteralPath $cachedPayload.FullName -Destination $destination -Force
+        }
+    }
+
+    $stillMissing = @($RequiredFiles | Where-Object { -not (Test-Path (Join-Path $LayoutPath $_)) })
+    if ($stillMissing.Count -gt 0) {
+        throw "Python offline layout is incomplete. Missing: $($stillMissing -join ', ')"
+    }
+}
+
 function New-IsccStringDefine {
     param(
         [string]$Name,
@@ -112,14 +168,31 @@ if (-not $SkipVendorRefresh) {
     $PythonInstallerName = "python-$PythonVersion-amd64.exe"
     $PythonInstallerUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonInstallerName"
     $PythonInstallerCachePath = Join-Path $CacheRoot $PythonInstallerName
+    $PythonLayoutCachePath = Join-Path $CacheRoot "python-$PythonVersion-layout"
     $PythonVendorPath = Join-Path $VendorRoot "python"
+    $PythonPayloadFiles = @(
+        $PythonInstallerName,
+        "core.msi",
+        "exe.msi",
+        "lib.msi",
+        "pip.msi",
+        "tcltk.msi",
+        "ucrt.msi"
+    )
 
     Save-Url -Url $PythonInstallerUrl -Destination $PythonInstallerCachePath
+    Initialize-PythonOfflineLayout `
+        -InstallerPath $PythonInstallerCachePath `
+        -LayoutPath $PythonLayoutCachePath `
+        -Version $PythonVersion `
+        -RequiredFiles $PythonPayloadFiles
     if (Test-Path $PythonVendorPath) {
         Remove-Item -LiteralPath $PythonVendorPath -Recurse -Force
     }
     New-Item -ItemType Directory -Path $PythonVendorPath -Force | Out-Null
-    Copy-Item -LiteralPath $PythonInstallerCachePath -Destination (Join-Path $PythonVendorPath $PythonInstallerName) -Force
+    foreach ($fileName in $PythonPayloadFiles) {
+        Copy-Item -LiteralPath (Join-Path $PythonLayoutCachePath $fileName) -Destination (Join-Path $PythonVendorPath $fileName) -Force
+    }
 
     $Wheelhouse = Join-Path $VendorRoot "wheelhouse"
     if (Test-Path $Wheelhouse) {

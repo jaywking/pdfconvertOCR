@@ -80,11 +80,22 @@ Type: filesandordirs; Name: "{app}\vendor\wheelhouse"
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
   if CurStep = ssInstall then
   begin
     { Prevent a v6.1-to-v6.2 upgrade from leaving two Explorer menu entries. }
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.1');
+  end;
+  if CurStep = ssPostInstall then
+  begin
+    if (not Exec(
+      ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\setup_installed_app.ps1') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode
+    )) or (ResultCode <> 0) then
+      RaiseException(Format('PDFConvertOCR runtime setup failed with exit code %d.', [ResultCode]));
   end;
 end;
 
@@ -94,7 +105,6 @@ Name: "{group}\How to use PDFConvertOCR"; Filename: "notepad.exe"; Parameters: "
 Name: "{group}\Uninstall PDFConvertOCR"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup_installed_app.ps1"""; StatusMsg: "Preparing the PDFConvertOCR offline runtime..."; Flags: runhidden waituntilterminated
 Filename: "notepad.exe"; Parameters: """{app}\HOW_TO_USE.txt"""; Description: "Open quick instructions"; Flags: postinstall skipifsilent nowait unchecked
 
 [UninstallDelete]

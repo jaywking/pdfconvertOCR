@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "pdf_automation_v6.2.py"
+SETUP_PATH = Path(__file__).resolve().parents[1] / "setup_installed_app.ps1"
+INSTALLER_PATH = Path(__file__).resolve().parents[1] / "installer" / "PDFConvertOCR.iss"
 SPEC = importlib.util.spec_from_file_location("pdf_automation_v6_1_quality", MODULE_PATH)
 app = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = app
@@ -59,6 +61,17 @@ class OcrQualityTests(unittest.TestCase):
         with patch.object(app, "discover_tesseract_languages", return_value=("eng",)), patch.object(app, "prompt_conversion_options", return_value=None):
             options = app.resolve_conversion_options(TOOLS, None, None, show_prompt=True)
         self.assertIsNone(options)
+
+    def test_packaged_runtime_includes_and_verifies_tkinter(self):
+        setup_script = SETUP_PATH.read_text(encoding="utf-8")
+        self.assertIn('"Include_tcltk=1"', setup_script)
+        self.assertIn('import tkinter, pymupdf, ocrmypdf', setup_script)
+        self.assertIn('"/repair", "/quiet"', setup_script)
+
+    def test_installer_propagates_runtime_setup_failures(self):
+        installer_script = INSTALLER_PATH.read_text(encoding="utf-8")
+        self.assertIn("ResultCode <> 0", installer_script)
+        self.assertIn("RaiseException", installer_script)
 
 
 if __name__ == "__main__":

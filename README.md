@@ -16,7 +16,7 @@ A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware c
 
 For coworkers and non-technical users, use the packaged Windows installer from GitHub Releases:
 
-1. Download `PDFConvertOCR-Setup-v6.2.0.exe`.
+1. Download `PDFConvertOCR-Setup-v6.2.1.exe`.
 2. Double-click the installer.
 3. Right-click a PDF and choose **Convert to OCR (v6.2)**.
 
@@ -128,7 +128,7 @@ non-interactive and defaults to Standard with English unless options are given.
 - `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
 - `setup_installed_app.ps1`: Post-install setup and repair script used by the packaged Windows installer.
 - `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
-- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.2.0.exe`.
+- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.2.1.exe`.
 - `registry/add_OCR_context_v6.2.reg`: The registry file for creating the right-click context menu item.
 - `archives/`: Contains archived scripts and logs from previous versions.
 
@@ -143,7 +143,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.
 The build script prepares an offline vendor payload from the local build machine and writes:
 
 ```text
-dist\PDFConvertOCR-Setup-v6.2.0.exe
+dist\PDFConvertOCR-Setup-v6.2.1.exe
 ```
 
 `app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.

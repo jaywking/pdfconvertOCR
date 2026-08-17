@@ -2,10 +2,10 @@
 #define MyAppName "PDFConvertOCR"
 #endif
 #ifndef MyAppVersion
-#define MyAppVersion "6.2.0"
+#define MyAppVersion "6.2.1"
 #endif
 #ifndef MyDisplayVersion
-#define MyDisplayVersion "6.2"
+#define MyDisplayVersion "6.2.1"
 #endif
 #ifndef MyMenuLabel
 #define MyMenuLabel "Convert to OCR (v6.2)"

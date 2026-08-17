@@ -1,7 +1,7 @@
 <!-- BEGIN DEV-TOOLBOX -->
 <!--
 Source: dev-toolbox/standards/AGENTS.md
-Standard-Version: 1.1.0
+Standard-Version: 1.2.0
 Last-Updated: 2026-08-16
 Managed-By: dev-toolbox
 Managed-Mode: ManagedBlock
@@ -55,6 +55,12 @@ they are more specific and do not conflict with user instructions.
   the project. Treat the external environment as disposable and call its
   interpreter explicitly from setup, run, test, editor, and scheduled-task
   configuration.
+- For new environments, prefer the latest stable Python feature release that
+  the project's complete dependency, tooling, packaging, and deployment stack
+  supports. Compatibility takes precedence over using the newest release.
+- Migrate an existing project to a new Python feature release through a
+  separate candidate environment and project tests; do not upgrade its working
+  environment in place or switch configured interpreter paths before validation.
 - Do not create an in-repository `.venv`, install project dependencies globally,
   reuse another project's environment, or rely on a shared tool runtime for
   app-owned behavior unless the project documents an approved exception.
@@ -151,6 +157,9 @@ Local Python application guidance:
   `C:\Utils` backups exclude library trees. Use the explicit interpreter path,
   bind local UIs to `127.0.0.1`, keep secrets in an approved OS credential
   store, and keep live SQLite files out of Git.
+- Prefer the latest stable Python feature release supported by the project's
+  complete stack. Test feature-line migrations in a separate candidate
+  environment and do not switch the working interpreter before validation.
 - Do not create an in-repository `.venv`, use another project's environment, or
   install app dependencies globally unless an approved project exception says
   otherwise.

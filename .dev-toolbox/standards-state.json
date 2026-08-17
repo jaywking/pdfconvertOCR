@@ -1,23 +1,23 @@
 {
     "schemaVersion":  1,
     "managedBy":  "dev-toolbox",
-    "updatedAt":  "2026-08-17T02:11:29.4750615Z",
+    "updatedAt":  "2026-08-17T02:30:21.8398295Z",
     "files":  {
                   "AGENTS.md":  {
                                     "source":  "standards/AGENTS.md",
                                     "target":  "AGENTS.md",
-                                    "version":  "1.1.0",
+                                    "version":  "1.2.0",
                                     "managementMode":  "ManagedBlock",
-                                    "appliedHash":  "9c48fbb9cdef4363a9c83a60f4dbdaabad9eea0162899e817c629b6c0d794f6e",
-                                    "appliedAt":  "2026-08-17T02:11:29.4446960Z"
+                                    "appliedHash":  "e4d818a1f61fde1f6d87c2cc0c68d39402507951d553fc9756c8b94302a89dd4",
+                                    "appliedAt":  "2026-08-17T02:30:21.7917208Z"
                                 },
                   "AUTOMATION_STANDARD.md":  {
                                                  "source":  "standards/AUTOMATION_STANDARD.md",
                                                  "target":  "AUTOMATION_STANDARD.md",
-                                                 "version":  "1.1.0",
+                                                 "version":  "1.2.0",
                                                  "managementMode":  "WholeFile",
-                                                 "appliedHash":  "b128da0910a477250dedafa1542185feec44fe0a22f4f288096009c4c21140be",
-                                                 "appliedAt":  "2026-08-17T02:11:29.4726576Z"
+                                                 "appliedHash":  "7fde05d683097e8f62a9ecbdfa99ee64422d9ab96d00b2a2036a7bcddf361fe6",
+                                                 "appliedAt":  "2026-08-17T02:30:21.8337239Z"
                                              }
               }
 }

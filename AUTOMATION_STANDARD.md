@@ -1,6 +1,6 @@
 <!--
 Source: dev-toolbox/standards/AUTOMATION_STANDARD.md
-Standard-Version: 1.1.0
+Standard-Version: 1.2.0
 Last-Updated: 2026-08-16
 Managed-By: dev-toolbox
 Managed-Mode: WholeFile
@@ -43,6 +43,10 @@ Local-Overrides: PROJECT_CONTEXT.md
   projects under `C:\Utils`, keep the generated Python environment under
   `C:\LocalVenvs\<project>` by default and keep its reproducibility files in
   the project.
+- Select the latest stable Python feature release supported by the complete
+  dependency, tooling, packaging, and deployment stack. Test a feature-version
+  migration in a separate candidate environment before changing unattended
+  entry points or scheduled-task interpreter paths.
 - Treat external project environments as disposable. Record creation, install,
   and validation commands, and do not silently rebuild or upgrade them.
 - Resolve executable paths deterministically. Do not assume a user-specific

@@ -74,6 +74,10 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyCont
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Document"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyContextVerb}\command"; ValueType: string; ValueData: """{app}\{#MyRunnerScript}"" ""%L"""; Flags: uninsdeletekey
 
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\vendor\python"
+Type: filesandordirs; Name: "{app}\vendor\wheelhouse"
+
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
 begin

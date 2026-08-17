@@ -150,6 +150,10 @@ dist\PDFConvertOCR-Setup-v6.2.1.exe
 
 `requirements.txt` pins the top-level Python packages to the versions currently bundled in the offline wheelhouse. If you intentionally upgrade OCRmyPDF or PyMuPDF, rebuild the installer vendor payload so `setup_installed_app.ps1` can repair packaged installs from matching wheels.
 
+The packaged runtime defaults to Python 3.14.7. The build script derives the
+CPython feature and ABI wheel target from that version, and packaged upgrades
+replace an older bundled Python runtime before installing the offline wheels.
+
 Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
 
 ## How it Works
@@ -202,7 +206,7 @@ After OCR and page numbering are complete, the script sets the generated `*_OCR.
   - Cause: A global/user `ocrmypdf` install is loading mismatched `pydantic` and `pydantic-core` versions.
   - Fix: Run using the project venv (the script now prefers this automatically), or repair global packages:
   ```bat
-  python -m pip install --upgrade --force-reinstall "pydantic==2.12.5" "pydantic-core==2.41.5"
+  python -m pip install --upgrade --force-reinstall "pydantic==2.13.4" "pydantic-core==2.46.4"
   ```
 - **ChatGPT says "No text can be extracted"**: For a stubborn file, you can force re-OCR on every page with this manual command, though it may increase file size:
   ```bat

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "pdf_automation_v6.2.py"

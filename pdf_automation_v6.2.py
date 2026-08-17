@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 # ---------- Configuration ----------
 GS_TIMEOUT_SECS = 600

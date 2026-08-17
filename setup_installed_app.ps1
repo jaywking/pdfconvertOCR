@@ -12,25 +12,51 @@ $Wheelhouse = Join-Path $AppRoot "vendor\wheelhouse"
 
 Write-Host "PDFConvertOCR install folder: $AppRoot"
 
-if (-not (Test-Path $PythonExe)) {
-    if (-not $PythonInstaller) {
-        throw "Bundled Python installer not found under vendor\python."
-    }
+if (-not $PythonInstaller) {
+    throw "Bundled Python installer not found under vendor\python."
+}
+if ($PythonInstaller.BaseName -notmatch '^python-(\d+\.\d+\.\d+)-amd64$') {
+    throw "Could not determine bundled Python version from $($PythonInstaller.Name)"
+}
+$ExpectedPythonVersion = $Matches[1]
 
-    Write-Host "Installing bundled Python runtime..."
+if (Test-Path $PythonExe) {
+    $InstalledPythonVersion = $null
+    try {
+        $InstalledPythonVersion = & $PythonExe -c "import platform; print(platform.python_version())"
+        if ($LASTEXITCODE -ne 0) {
+            $InstalledPythonVersion = $null
+        }
+    }
+    catch {
+        $InstalledPythonVersion = $null
+    }
+    if ($InstalledPythonVersion -ne $ExpectedPythonVersion) {
+        Write-Host "Replacing Python runtime $InstalledPythonVersion with bundled version $ExpectedPythonVersion..."
+        Remove-Item -LiteralPath $PythonDir -Recurse -Force
+    }
+}
+
+if (-not (Test-Path $PythonExe)) {
+    Write-Host "Installing bundled Python runtime $ExpectedPythonVersion..."
     New-Item -ItemType Directory -Path $PythonDir -Force | Out-Null
     $pythonArgs = @(
         "/quiet",
         "InstallAllUsers=0",
+        "AssociateFiles=0",
         "PrependPath=0",
         "Include_doc=0",
         "Include_launcher=0",
         "Include_pip=1",
+        "Shortcuts=0",
         "Include_tcltk=0",
         "Include_test=0",
         "TargetDir=$PythonDir"
     )
-    Start-Process -FilePath $PythonInstaller.FullName -ArgumentList $pythonArgs -Wait -NoNewWindow
+    $PythonInstallProcess = Start-Process -FilePath $PythonInstaller.FullName -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru
+    if ($PythonInstallProcess.ExitCode -ne 0) {
+        throw "Bundled Python installer failed with exit code $($PythonInstallProcess.ExitCode)."
+    }
 }
 
 if (-not (Test-Path $PythonExe)) {
@@ -65,7 +91,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Verifying runtime imports..."
-& $PythonExe -c "import fitz, ocrmypdf; print('Runtime OK')"
+& $PythonExe -c "import pymupdf, ocrmypdf; print('Runtime OK')"
 if ($LASTEXITCODE -ne 0) {
     throw "Runtime verification failed."
 }

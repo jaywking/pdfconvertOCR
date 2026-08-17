@@ -1,6 +1,6 @@
 param(
     [string]$Version,
-    [string]$PythonVersion = "3.12.10",
+    [string]$PythonVersion = "3.14.7",
     [switch]$SkipVendorRefresh
 )
 
@@ -11,6 +11,15 @@ if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyCo
 if (Get-Variable PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue) {
     $PSNativeCommandArgumentPassing = "Standard"
 }
+
+$PythonVersionParts = $PythonVersion.Split(".")
+if ($PythonVersionParts.Count -lt 2 -or
+    $PythonVersionParts[0] -notmatch '^\d+$' -or
+    $PythonVersionParts[1] -notmatch '^\d+$') {
+    throw "PythonVersion must begin with a major.minor feature version: $PythonVersion"
+}
+$PythonFeatureVersion = "$($PythonVersionParts[0]).$($PythonVersionParts[1])"
+$PythonAbi = "cp$($PythonVersionParts[0])$($PythonVersionParts[1])"
 
 $InstallerRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $InstallerRoot
@@ -106,6 +115,9 @@ if (-not $SkipVendorRefresh) {
     $PythonVendorPath = Join-Path $VendorRoot "python"
 
     Save-Url -Url $PythonInstallerUrl -Destination $PythonInstallerCachePath
+    if (Test-Path $PythonVendorPath) {
+        Remove-Item -LiteralPath $PythonVendorPath -Recurse -Force
+    }
     New-Item -ItemType Directory -Path $PythonVendorPath -Force | Out-Null
     Copy-Item -LiteralPath $PythonInstallerCachePath -Destination (Join-Path $PythonVendorPath $PythonInstallerName) -Force
 
@@ -122,8 +134,8 @@ if (-not $SkipVendorRefresh) {
         --only-binary=:all: `
         --platform win_amd64 `
         --implementation cp `
-        --python-version 3.12 `
-        --abi cp312 `
+        --python-version $PythonFeatureVersion `
+        --abi $PythonAbi `
         -r (Join-Path $ProjectRoot "requirements.txt")
     if ($LASTEXITCODE -ne 0) {
         throw "pip download failed."

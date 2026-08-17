@@ -1,4 +1,80 @@
 <!-- BEGIN DEV-TOOLBOX -->
+<!--
+Source: dev-toolbox/standards/AGENTS.md
+Standard-Version: 1.0.0
+Last-Updated: 2026-08-16
+Managed-By: dev-toolbox
+Managed-Mode: ManagedBlock
+Local-Overrides: Project AGENTS.md content outside this block and PROJECT_CONTEXT.md
+-->
+
+# Shared Project Guidance
+
+These rules apply only when they fit the project and the user's current request.
+Project-specific instructions outside the managed block take precedence when
+they are more specific and do not conflict with user instructions.
+
+## Evidence and Scope
+
+- Inspect the actual repository, configuration, entry points, and relevant logs
+  before proposing a cause or changing behavior.
+- Verify version-sensitive tool and library behavior with current official
+  documentation, changelogs, release notes, or primary project sources.
+- Do not rely only on memory for command syntax, system configuration, package
+  behavior, or deployment state.
+- State material assumptions and distinguish verified facts from inference.
+- Preserve project-specific paths, names, data contracts, and working behavior
+  unless the task explicitly requires changing them.
+- Keep changes narrowly scoped. Do not install tools, alter cloud or production
+  state, or run destructive commands without authorization that covers the act.
+
+## Automation Behavior
+
+- Preserve silent and headless operation for automation unless interactive
+  behavior is an explicit requirement.
+- Do not introduce GUI prompts, Save As dialogs, virtual-printer dependencies,
+  or manual interaction into unattended workflows.
+- Prefer direct command-line or library interfaces when automation reliability
+  matters.
+- Make dry-run or preview behavior available for consequential batch changes
+  where practical.
+- Preserve original inputs until replacement output has been produced and
+  validated successfully.
+
+## Windows and Runtime Considerations
+
+- Account for PATH resolution, permissions, execution policy, quoting, spaces
+  in paths, user-profile folders, working directories, and scheduled-task
+  identities.
+- Do not assume an interactive desktop, mapped drive, inherited shell profile,
+  or administrator rights.
+- Keep project-owned dependencies pinned in the project. Use shared workstation
+  runtimes only when the project explicitly documents that arrangement.
+
+## Logging and Errors
+
+- Use structured, timestamped logs appropriate to the workflow.
+- Record enough context to identify the operation, input, output, result, and
+  failure point without exposing secrets or unnecessary personal information.
+- Fail clearly with actionable error messages and meaningful exit behavior.
+- Do not report success until required outputs and postconditions are verified.
+
+## Validation and Handoff
+
+- Run checks proportional to the risk of the change, including focused tests,
+  static checks, build checks, or smoke tests as applicable.
+- When uncertain, inspect official documentation, relevant changelogs, and
+  upstream issues before changing established behavior.
+- Report what changed, what was verified, what remains deferred, and any state
+  that was not verified live.
+
+## Shared Workstation Toolbox
+
+Reusable workstation guidance and optional tools are documented in
+`C:\Utils\dev-toolbox`. Review the toolbox only when relevant to the task.
+Do not create Node, editor, CI, cloud, or deployment metadata solely to satisfy
+toolbox conventions. Preview toolbox adoption before writing project files.
+
 # Optional Local Tools
 
 Jason's workstation may have shared local tools documented in
@@ -55,6 +131,17 @@ VS Code extension guidance:
 - Prefer one extension per job, inspect transitive dependencies and background
   activation, and do not install or uninstall extensions without explicit user
   approval.
+
+Local Python application guidance:
+
+- For Windows-hosted Python applications with a local browser UI or
+  desktop-style workflow, review
+  `C:\Utils\dev-toolbox\snippets\local-python-app.md`.
+- Keep app environments and dependencies project-local, bind local UIs to
+  `127.0.0.1` by default, keep secrets in an approved OS credential store, and
+  keep live SQLite files out of Git.
+- Do not create `package.json` or add Node tooling solely for toolbox adoption.
+  Add them only when the project owns a maintained Node workflow.
 
 Optional stack-specific agent skills:
 
@@ -171,11 +258,14 @@ matching interactive login before continuing:
 - Google Cloud: `gcloud auth login`
 - Netlify CLI: `netlify login`
 
-Refresh this section by rerunning:
+Preview a refresh of this section with:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Utils\dev-toolbox\scripts\adopt-project.ps1
+powershell -ExecutionPolicy Bypass -File C:\Utils\dev-toolbox\scripts\adopt-project.ps1 -WhatIf
 ```
+
+Run the same command without `-WhatIf` only after reviewing the proposed
+project change.
 
 Review `C:\Utils\dev-toolbox` for current shared best practices, snippets, and
 local tool guidance. Prefer toolbox guidance when it applies, especially for

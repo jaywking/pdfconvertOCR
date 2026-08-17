@@ -5,6 +5,9 @@ logs/
 *.log
 dist/
 
+# Local dev-toolbox synchronization backups
+.dev-toolbox/backups/
+
 # Intermediates & outputs
 *_unlocked.pdf
 *_OCR.pdf

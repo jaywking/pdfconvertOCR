@@ -1,7 +1,7 @@
 <!-- BEGIN DEV-TOOLBOX -->
 <!--
 Source: dev-toolbox/standards/AGENTS.md
-Standard-Version: 1.0.0
+Standard-Version: 1.1.0
 Last-Updated: 2026-08-16
 Managed-By: dev-toolbox
 Managed-Mode: ManagedBlock
@@ -48,8 +48,17 @@ they are more specific and do not conflict with user instructions.
   identities.
 - Do not assume an interactive desktop, mapped drive, inherited shell profile,
   or administrator rights.
-- Keep project-owned dependencies pinned in the project. Use shared workstation
-  runtimes only when the project explicitly documents that arrangement.
+- For projects under `C:\Utils`, keep project-owned Python environments under
+  `C:\LocalVenvs\<project>` by default so backups retain source and manifests
+  without thousands of reconstructable library files.
+- Keep dependency manifests, supported Python versions, and rebuild commands in
+  the project. Treat the external environment as disposable and call its
+  interpreter explicitly from setup, run, test, editor, and scheduled-task
+  configuration.
+- Do not create an in-repository `.venv`, install project dependencies globally,
+  reuse another project's environment, or rely on a shared tool runtime for
+  app-owned behavior unless the project documents an approved exception.
+- Do not silently create, delete, rebuild, or upgrade an environment.
 
 ## Logging and Errors
 
@@ -137,9 +146,14 @@ Local Python application guidance:
 - For Windows-hosted Python applications with a local browser UI or
   desktop-style workflow, review
   `C:\Utils\dev-toolbox\snippets\local-python-app.md`.
-- Keep app environments and dependencies project-local, bind local UIs to
-  `127.0.0.1` by default, keep secrets in an approved OS credential store, and
-  keep live SQLite files out of Git.
+- Keep app dependencies and reconstruction files project-owned, but place the
+  generated environment under `C:\LocalVenvs\<project>` by default so
+  `C:\Utils` backups exclude library trees. Use the explicit interpreter path,
+  bind local UIs to `127.0.0.1`, keep secrets in an approved OS credential
+  store, and keep live SQLite files out of Git.
+- Do not create an in-repository `.venv`, use another project's environment, or
+  install app dependencies globally unless an approved project exception says
+  otherwise.
 - Do not create `package.json` or add Node tooling solely for toolbox adoption.
   Add them only when the project owns a maintained Node workflow.
 

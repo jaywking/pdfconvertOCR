@@ -1,6 +1,6 @@
 <!--
 Source: dev-toolbox/standards/AUTOMATION_STANDARD.md
-Standard-Version: 1.0.0
+Standard-Version: 1.1.0
 Last-Updated: 2026-08-16
 Managed-By: dev-toolbox
 Managed-Mode: WholeFile
@@ -39,7 +39,12 @@ Local-Overrides: PROJECT_CONTEXT.md
 
 - Check required executables, modules, versions, configuration, free space, and
   permissions before beginning consequential work.
-- Pin project-owned dependencies and document supported runtime versions.
+- Pin project-owned dependencies and document supported runtime versions. For
+  projects under `C:\Utils`, keep the generated Python environment under
+  `C:\LocalVenvs\<project>` by default and keep its reproducibility files in
+  the project.
+- Treat external project environments as disposable. Record creation, install,
+  and validation commands, and do not silently rebuild or upgrade them.
 - Resolve executable paths deterministically. Do not assume a user-specific
   PATH is present in scheduled tasks.
 - Validate output content, not only output-file existence.
@@ -78,6 +83,9 @@ Local-Overrides: PROJECT_CONTEXT.md
 - Account for execution policy, file permissions, user profiles, working
   directories, service accounts, mapped drives, and noninteractive sessions.
 - Use absolute paths for scheduled-task entry points and required executables.
+- Invoke the project's explicit
+  `C:\LocalVenvs\<project>\Scripts\python.exe` path rather than relying on
+  activation, the default Python, or global PATH changes.
 - Ensure logs and exit codes remain available when no console is visible.
 
 ## Acceptance

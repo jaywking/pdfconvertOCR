@@ -1,255 +1,355 @@
-# PDF Automation (Unlock + OCR) — v6.2
+# PDFConvertOCR 6.2.1
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware compression, adds page numbers, and preserves useful file sorting dates. It supports both batch processing and a right-click Explorer action.
+PDFConvertOCR is a local Windows utility that turns scanned PDFs into searchable
+PDFs. Its primary workflow adds **Convert to OCR (v6.2)** to the File Explorer
+right-click menu. It can also process files from PowerShell or run a folder in
+batch mode.
 
-## What it does
-- Detects print or copy‑restricted PDFs and **unlocks** them using Ghostscript.
-- Runs **OCR** with OCRmyPDF to create a searchable text layer.
-- Adds **page numbers** in "Page X of Y" format to the bottom of each page.
-- Preserves the original PDF's Modified Date on the generated `*_OCR.pdf` output.
-- Uses standard searchable PDF output with balanced compression to keep sizes reasonable.
-- Supports two modes:
-  - **Right-click mode** (Explorer): Processes selected PDFs **in place**, creates a new `*_OCR.pdf` file with the source file's Modified Date, and moves the original into an `Originals\` subfolder. This is the primary intended use.
-  - **Batch mode** (manual): Running the script without arguments scans the root folder, writes results to `_complete\`, and moves originals to `_processed\` (with timestamp/UUID to avoid collisions).
+The application can rewrite a PDF that opens normally but has printing or
+copying restrictions. It does not discover or recover an unknown PDF password.
+Only process documents that you are authorized to modify.
 
-## Quick Install
+## Quick install
 
-For coworkers and non-technical users, use the packaged Windows installer from GitHub Releases:
+For most users, install the packaged application:
 
-1. Download `PDFConvertOCR-Setup-v6.2.1.exe`.
-2. Double-click the installer.
-3. Right-click a PDF and choose **Convert to OCR (v6.2)**.
+PDFConvertOCR requires Windows 10 or 11.
 
-The installer is designed to install per-user under `%LOCALAPPDATA%\PDFConvertOCR`, bundle the OCR runtime tools, and create the right-click menu automatically. Before it executes or installs a bundled runtime, setup verifies the approved payload inventory, SHA-256 tree digests, and Python installer signature. A changed, missing, extra, or reparse-point-backed payload stops installation.
+1. Open the [PDFConvertOCR 6.2.1 release](https://github.com/jaywking/pdfconvertOCR/releases/tag/v6.2.1).
+2. Download `PDFConvertOCR-Setup-v6.2.1.exe`.
+3. Run the installer.
+4. Right-click a PDF in File Explorer and choose **Convert to OCR (v6.2)**.
 
-## How To Use It
+The installer runs per user under `%LOCALAPPDATA%\PDFConvertOCR`; it does not
+require a separate Python, Ghostscript, Tesseract, or pngquant installation.
+It verifies the approved bundled payload before installing or executing it.
 
-PDFConvertOCR runs from Windows File Explorer. It does not open as a normal desktop app.
+The current installer is not Authenticode-signed, so Windows may identify its
+publisher as unknown. Download it only from the official release above. The
+SHA-256 of the 6.2.1 installer is:
 
-1. Open the folder that contains the PDF.
-2. Right-click the PDF file.
-3. Choose **Convert to OCR (v6.2)**.
-4. Wait for the conversion window to finish.
-
-The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the source file's Modified Date, and moves the original into an `Originals\` folder only after the output is fully verified.
-
-## Source Checkout Requirements
-- Windows 10 or 11
-- The exact approved source Python runtime recorded in `trusted-artifacts.json`
-  (currently PSF Python 3.14.4 on this workstation).
-- **Ghostscript**: External executable. Must be installed and accessible via PATH or bundled under `vendor\ghostscript`.
-- **Tesseract OCR**: External executable. OCRmyPDF needs it for OCR work.
-- **pngquant**: External executable. OCRmyPDF needs it when this script uses `--optimize 3`.
-- Python packages from the fully transitive, SHA-256-locked `requirements-lock.txt`.
-- Use the project virtual environment (`C:\LocalVenvs\pdfconvertOCR`) when running the script.
-
-Create the source-checkout Python environment, or reinstall its locked packages:
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1"
+```text
+853f0c13067b767cd1a331efd31bc60b53677680c0a94f8aee6bd0cabf410f87
 ```
 
-Verify the approved source runtime and existing project environment without
-installing packages:
+## Everyday use
+
+PDFConvertOCR does not open as a separate desktop application. Start each
+conversion from File Explorer:
+
+1. Open the folder containing the PDF.
+2. Right-click the PDF and select **Convert to OCR (v6.2)**.
+3. Choose a quality preset and OCR language in the options window.
+4. Select **Convert** and leave the conversion window open until it finishes.
+
+Selecting **Cancel** or closing the options window stops before any files are
+changed.
+
+After a successful conversion, the searchable output is created next to the
+source as `<name>_OCR.pdf`. The output keeps the source PDF's Modified Date.
+Only after the output passes validation is the source moved into an
+`Originals\` subfolder.
+
+An existing output is never overwritten. If `Report_OCR.pdf` already exists,
+the next output is `Report_OCR (1).pdf`, then `Report_OCR (2).pdf`, and so on.
+
+For short coworker-facing instructions, see [HOW_TO_USE.txt](HOW_TO_USE.txt).
+
+## Quality presets and OCR languages
+
+| Preset | Behavior | Page numbers |
+| --- | --- | --- |
+| **Standard** | Deskews pages and creates a balanced searchable PDF. | Yes |
+| **Straighten and rotate** | Standard processing plus automatic page-orientation correction. | Yes |
+| **Small file** | Uses stronger JPEG compression for a smaller output. | Yes |
+| **Archival PDF/A** | Creates OCRmyPDF-generated PDF/A output. PDFConvertOCR does not independently certify conformance. | No |
+
+English is selected by default. The options window lists the language packs
+reported by the active Tesseract runtime. The packaged installer includes
+English and orientation data. Adding languages to the packaged application
+requires rebuilding its verified Tesseract payload; source-checkout users may
+use language packs installed in their approved Tesseract installation.
+
+## Output and source-file safety
+
+- OCR and page numbering are written to temporary staging files. The output is
+  checked for readability, page count, OCR text, and the expected Modified Date
+  before publication.
+- If conversion or validation fails, the source and existing outputs remain in
+  place.
+- The default source action is **move**: after successful publication, the
+  source is archived in `Originals\` using a timestamp and short unique ID.
+  Command-line users can instead select **copy** or **keep**.
+- A selected path must identify one ordinary PDF with one filesystem link.
+  Symbolic links, junctions, redirecting reparse points, hard links, and NTFS
+  alternate data stream paths are rejected.
+- Processing reads a private snapshot of the verified source. The application
+  checks source and staged-output identities again before publication and
+  source-file handling.
+
+Resource limits for unusually large or hostile PDFs remain planned. Until
+measured limits are implemented, process unexpected documents individually
+and avoid unattended oversized batches.
+
+## Troubleshooting
+
+### The right-click command is missing
+
+Rerun the packaged installer. If the menu still does not appear, restart File
+Explorer or sign out and back in. Source-checkout users can rerun
+`install_right_click_context.bat`.
+
+### Conversion fails or closes without producing an output
+
+Review the newest log under `%LOCALAPPDATA%\PDFConvertOCR\logs` for a packaged
+installation. A source checkout writes logs under its configured base directory.
+The source is not moved unless a verified output was published.
+
+### Packaged setup reports `ModuleNotFoundError: No module named 'fitz'`
+
+Rerun the installer, or run `setup_installed_app.ps1` from
+`%LOCALAPPDATA%\PDFConvertOCR`. Setup verifies the payload, replaces the local
+Python runtime, reinstalls the complete hash-locked wheel set, and verifies the
+required imports.
+
+### Setup or build reports an integrity, digest, reparse-point, or signer error
+
+Stop and obtain a fresh trusted installer or restore the reviewed build input.
+Do not bypass the check or update `trusted-artifacts.json` merely to make an
+unexpected local file pass.
+
+### The PDF is rejected as linked, redirected, or changed
+
+Use the original ordinary file rather than a shortcut, symbolic link, junction,
+hard link, or NTFS alternate data stream. If another program is updating the
+PDF, wait for it to finish or copy the completed PDF to a normal local filename
+and retry.
+
+### A PDF reader or AI tool still reports that no text can be extracted
+
+Normal conversion skips OCR on pages that already claim to contain text. If
+that existing text layer is unusable, a source-checkout user can create a
+separate recovery copy by rasterizing and re-OCRing every page:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1" -VerifyOnly
+& 'C:\LocalVenvs\pdfconvertOCR\Scripts\ocrmypdf.exe' --force-ocr --output-type pdf --no-overwrite 'input.pdf' 'fixed.pdf'
 ```
 
-If verification reports that the existing project environment is not the
-approved one, review the error and recreate it explicitly:
+This is an advanced recovery step, not the normal application workflow.
+`--force-ocr` rasterizes all page content, so vector content, interactive
+features, or digital signatures may be lost, and file size or visual quality
+may change. Verify the separate output carefully.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1" -Recreate
-```
+### Source checkout cannot find pngquant
 
-Bootstrap does not fall back to `py.exe`, an arbitrary `python.exe`, or an
-unrelated virtual environment. The approved source Python and project runtime
-are recorded in `trusted-artifacts.json`.
+OCRmyPDF requires the external `pngquant.exe` when PDFConvertOCR uses
+optimization level 3. Install it with Chocolatey:
 
-Install the external `pngquant` executable globally with Chocolatey if you are not using the packaged installer:
 ```powershell
 choco install pngquant -y
 ```
 
-## Setup & Usage (Right-Click Method)
+### Source checkout reports a `pydantic-core` incompatibility
 
-This is the recommended way to use the tool.
+Repair the approved project environment with `bootstrap.ps1 -Recreate`. Global
+or user-level Python packages are not supported runtime inputs.
 
-1.  **Install Dependencies**: Make sure Ghostscript, Tesseract, and pngquant are installed on your system, or use the packaged installer.
-2.  **Add Context Menu**: Double-click `install_right_click_context.bat`. This prepares the Python environment and adds the "Convert to OCR (v6.2)" option to your right-click menu for PDF files.
-3.  **Run**: In Explorer, select one or more PDFs, right-click, and choose **Convert to OCR (v6.2)**.
-4.  **Results**: For each file processed, a new `*_OCR.pdf` file will be created in the same directory with the original file's Modified Date. Only after that output is verified will the original be moved into a new `Originals` subfolder.
+## Source checkout setup
 
-For implementation details, see `RIGHT_CLICK_CONTEXT_MENU.md`.
+This section is for development or command-line use. Packaged-installer users
+do not need these steps.
 
-## Output Safety and Original Handling
+Requirements:
 
-PDFConvertOCR never overwrites an existing OCR output. If `Report_OCR.pdf`
-already exists, the next conversion produces `Report_OCR (1).pdf` (then `(2)`,
-and so on). Output is written to a temporary staging file, validated, and only
-then published. If OCR, page numbering, or validation fails, the original and
-existing outputs are left untouched.
+- Windows 10 or 11.
+- The approved source/build Python recorded in `trusted-artifacts.json`
+  (currently PSF Python 3.14.4 on this workstation).
+- Ghostscript, Tesseract, and pngquant installed in their documented system
+  locations.
+- The project environment at `C:\LocalVenvs\pdfconvertOCR`.
+- Python packages from the complete SHA-256-locked `requirements-lock.txt`.
 
-Explorer right-click conversion keeps the default behavior: after a verified
-output is published, the source PDF is moved into `Originals\` with a unique
-archive name. For command-line use, choose a different source-file policy:
-
-```powershell
-# Default: move the source into Originals after verification
-python .\pdf_automation_v6.2.py "C:\Docs\Report.pdf"
-
-# Keep the source where it is
-python .\pdf_automation_v6.2.py --original-action keep "C:\Docs\Report.pdf"
-
-# Copy the source into Originals while retaining the source in place
-python .\pdf_automation_v6.2.py --original-action copy "C:\Docs\Report.pdf"
-```
-
-Valid values for `--original-action` are `move`, `copy`, and `keep`.
-
-For source safety, the selected path must identify one ordinary PDF with a
-single filesystem link. Symbolic links, directory junctions, redirecting
-Windows reparse points, NTFS alternate data streams, and multiply linked source
-files are rejected before parsing. Processing uses a private snapshot copied
-from the verified file identity, then checks the original identity again before
-publishing output and before applying the original-file action. If the source
-is replaced or modified during conversion, publication or original handling is
-stopped as applicable.
-
-Security review status as of 2026-10-05: the trusted-executable discovery,
-installer/build-input integrity, and link-backed-input findings are remediated.
-The only remaining validated finding is low-priority resource-exhaustion
-hardening for unusually large or hostile PDFs and batches; the evidence-based
-limits are tracked in `PARKING_LOT.md`. No other validated scan finding requires
-an implementation change.
-
-## OCR Quality and Language Options
-
-When you start a conversion from File Explorer, PDFConvertOCR shows a small
-conversion-options prompt before any files are changed. Choose one quality
-preset and one or more installed OCR languages:
-
-- **Standard:** the existing balanced conversion: deskew, optimized PDF, and
-  JPEG quality 40.
-- **Straighten and rotate:** Standard plus automatic page-orientation
-  correction.
-- **Small file:** Standard processing with JPEG quality 25 for smaller output.
-- **Archival PDF/A:** OCRmyPDF-generated PDF/A output for archival workflows.
-  It intentionally omits page numbers so the archival output is not modified
-  afterward. PDFConvertOCR does not independently certify PDF/A conformance.
-
-English is selected by default. The prompt lists language packs detected from
-the installed Tesseract runtime; select more than one when a document mixes
-languages. The packaged installer includes English and orientation data only.
-Additional packs must already be installed with Tesseract.
-
-For non-interactive command-line or batch use, suppress the prompt and select
-the same options explicitly:
+Create the project environment or install its locked packages:
 
 ```powershell
-python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset straighten-rotate --language eng "C:\Docs\Scan.pdf"
-python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset small-file --language eng "C:\Docs\Scan.pdf"
-python .\pdf_automation_v6.2.py --no-options-prompt --quality-preset archival-pdfa --language eng "C:\Docs\Archive.pdf"
+powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\Utils\pdfconvertOCR\bootstrap.ps1'
 ```
 
-Use `--language eng+fra` for multiple installed language packs. Batch mode is
-non-interactive and defaults to Standard with English unless options are given.
+Verify the approved source runtime and existing environment without installing
+anything:
 
-## Core Files
-- `app_metadata.json`: The shared source of truth for app version, Explorer menu label, registry verb, runner script, and main script names.
-- `LICENSE`: GNU Affero General Public License version 3, which covers the
-  original PDFConvertOCR source code.
-- `pdf_automation_v6.2.py`: The main Python script containing all the logic.
-- `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
-- `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
-- `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
-- `requirements-lock.txt`: Fully transitive Windows CPython 3.14 dependency lock with a SHA-256 hash for every accepted distribution.
-- `trusted-artifacts.json`: Reviewed versions, source locations, file hashes, tree hashes, and signer requirements for build and packaged runtime inputs.
-- `trusted_artifacts.ps1`: Shared fail-closed verification functions for file hashes, directory inventories, reparse points, and Authenticode signers.
-- `setup_installed_app.ps1`: Post-install setup and repair script that verifies all packaged payloads before replacing the local Python runtime and installing the locked wheels.
-- `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
-- `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.2.1.exe`.
-- `registry/add_OCR_context_v6.2.reg`: The registry file for creating the right-click context menu item.
-- `archives/`: Contains archived scripts and logs from previous versions.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\Utils\pdfconvertOCR\bootstrap.ps1' -VerifyOnly
+```
 
-## Building the Windows Installer
+If verification identifies a stale or damaged project environment, review the
+error and recreate it explicitly:
 
-Install Inno Setup 6 on the build machine, then run:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\Utils\pdfconvertOCR\bootstrap.ps1' -Recreate
+```
+
+Bootstrap does not fall back to `py.exe`, an arbitrary `python.exe`, or another
+project's environment. It manages Python packages but does not install the
+external Ghostscript, Tesseract, or pngquant tools.
+
+To add the Explorer command from a source checkout, run
+`install_right_click_context.bat`. Remove it with
+`uninstall_right_click_context.bat`. Technical details are in
+[RIGHT_CLICK_CONTEXT_MENU.md](RIGHT_CLICK_CONTEXT_MENU.md).
+
+## Command-line use
+
+Run the application with its explicit project interpreter:
+
+```powershell
+$pdfConvertPython = 'C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe'
+
+# Default: publish the output, then move the source into Originals
+& $pdfConvertPython .\pdf_automation_v6.2.py 'C:\Docs\Report.pdf'
+
+# Keep the source in place
+& $pdfConvertPython .\pdf_automation_v6.2.py --original-action keep 'C:\Docs\Report.pdf'
+
+# Copy the source into Originals and retain it in place
+& $pdfConvertPython .\pdf_automation_v6.2.py --original-action copy 'C:\Docs\Report.pdf'
+```
+
+Valid source actions are `move`, `copy`, and `keep`.
+
+Suppress the options window and provide conversion settings explicitly for
+automation:
+
+```powershell
+& $pdfConvertPython .\pdf_automation_v6.2.py --no-options-prompt --quality-preset straighten-rotate --language eng 'C:\Docs\Scan.pdf'
+& $pdfConvertPython .\pdf_automation_v6.2.py --no-options-prompt --quality-preset small-file --language eng 'C:\Docs\Scan.pdf'
+& $pdfConvertPython .\pdf_automation_v6.2.py --no-options-prompt --quality-preset archival-pdfa --language eng 'C:\Docs\Archive.pdf'
+```
+
+Use a plus-separated value such as `--language eng+fra` only when every
+requested language pack is installed.
+
+### Batch mode
+
+Running the script without PDF arguments processes every safe `*.pdf` in the
+configured base directory. Set that directory explicitly before starting a
+batch:
+
+```powershell
+$env:PDFCONVERTOCR_BASE_DIR = 'C:\Docs\Incoming'
+& $pdfConvertPython .\pdf_automation_v6.2.py --no-options-prompt
+$env:PDFCONVERTOCR_BASE_DIR = $null
+```
+
+Batch outputs go to `_complete\`, successfully handled sources go to
+`_processed\`, and logs go to `logs\`. Batch mode is sequential and defaults to
+Standard with English unless options are supplied.
+
+## Building the Windows installer
+
+The release build requires Inno Setup 6 and all approved inputs recorded in
+`trusted-artifacts.json`.
+
+Build a refreshed offline payload and compile the installer:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1
 ```
 
-To verify the currently approved build tools and staged vendor payload without
-refreshing the payload or compiling an installer:
+Verify the current tools and staged payload without refreshing or compiling:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1 -VerifyOnly
 ```
 
-To compile from an already staged payload, use `-SkipVendorRefresh`. This does
-not skip integrity checks:
+Compile an already staged payload after performing the same integrity checks:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1 -SkipVendorRefresh
 ```
 
-The build script prepares an offline vendor payload from the local build machine and writes:
+The build writes both required release assets:
 
 ```text
 dist\PDFConvertOCR-Setup-v6.2.1.exe
 dist\ghostscript-10.07.0.tar.xz
 ```
 
-Publish both files in the GitHub release. The source sidecar is downloaded from
-the pinned Artifex URL and must pass the SHA-256 recorded in
-`trusted-artifacts.json` before it is staged in `dist`.
+Publish both files together. The Ghostscript source archive is downloaded from
+the pinned Artifex URL and must match the SHA-256 in
+`trusted-artifacts.json`.
 
-`app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.
-
-`requirements.txt` routes ordinary pip usage through the secure lock and records
-the two direct application dependencies in comments. `requirements-lock.txt`
-pins and hashes the complete Windows CPython 3.14
-dependency set. `trusted-artifacts.json` separately pins the Python installer,
-wheelhouse, Ghostscript, Tesseract, and pngquant payloads. The build verifies
-those inputs and the signed Python/Inno Setup executables before execution or
-packaging. `-SkipVendorRefresh` reuses the local staging tree only after the
-same complete verification; `-VerifyOnly` performs the checks without compiling.
+The packaged runtime is Python 3.14.7. The build derives the CPython feature
+and ABI wheel target from that version, removes prior staged vendor trees, and
+installs only the complete hash-locked offline dependency set. Tcl/Tk is
+included for the Explorer conversion-options window.
 
 When intentionally changing a dependency, Python version, native runtime, or
-build tool, independently verify its upstream provenance, update
-`requirements-lock.txt` and/or `trusted-artifacts.json` as applicable, rebuild
-the vendor payload, and review the resulting manifest and lock-file diff before
-distributing a new installer. Do not update a digest merely to make an
-unexpected local payload pass.
+build tool, independently verify its provenance, update the appropriate lock or
+policy entry, rebuild the payload, and review the resulting diff. Never change
+a digest solely to make an unexpected file pass.
 
-The packaged runtime is pinned to Python 3.14.7. The build script derives the
-CPython feature and ABI wheel target from that version, and packaged upgrades
-delete the prior staged vendor trees before copying the new payload. Installed
-setup verifies all bundled payloads before execution, removes the prior local
-Python runtime, installs the approved runtime, installs only the complete
-hash-locked offline wheel set, and verifies required imports. The offline Python
-payload includes Tcl/Tk because the Explorer conversion-options dialog uses
-`tkinter`.
-
-### Integrity and executable trust boundaries
+## Security and integrity model
 
 - Source bootstrap accepts only the approved signed CPython installation and
   project environment recorded in `trusted-artifacts.json`.
-- Installer creation verifies the source Python components, isolated build
-  `pip`, Inno Setup signer, downloaded Python installer, and complete vendor
-  directory inventories before compilation.
-- Packaged setup performs the same vendor inventory checks before running the
-  Python installer or importing a package. Verification failures stop setup;
-  there is no network or unpinned-package fallback.
+- Installer creation verifies source Python components, isolated build `pip`,
+  the Inno Setup signer, the downloaded Python installer, and complete vendor
+  inventories before compilation.
+- Packaged setup verifies the same inventories before executing the Python
+  installer or importing packages. There is no network or unpinned-package
+  fallback during packaged setup.
 - Runtime OCR accepts `ocrmypdf.exe` only from the packaged
   `python\Scripts` directory or `C:\LocalVenvs\pdfconvertOCR\Scripts` and
-  rejects a trusted runtime path containing a symlink or Windows reparse point.
-- Ghostscript, Tesseract, and pngquant may still come from the documented
-  system locations in a source checkout. Packaged installs prepend their
-  verified bundled directories to `PATH`.
+  rejects a trusted path containing a symlink or redirecting Windows reparse
+  point.
+- Packaged installs prepend their verified Ghostscript, Tesseract, and pngquant
+  directories to `PATH`. Source checkouts use the documented system locations.
+
+The 2026-10-05 security review reported four validated findings. Trusted
+executable discovery, installer/build-input integrity, and link-backed-input
+handling are remediated. Low-priority resource-exhaustion hardening is the only
+remaining validated item and is tracked in [PARKING_LOT.md](PARKING_LOT.md).
+
+## How it works
+
+1. The application checks the selected source path and captures a stable file
+   identity.
+2. It copies the verified source through an open handle into a private temporary
+   directory.
+3. If the PDF opens but has printing or copying restrictions, Ghostscript
+   creates an unrestricted working copy.
+4. OCRmyPDF creates searchable output. Standard processing is equivalent to:
+
+   ```text
+   ocrmypdf.exe -l eng --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --deskew input.pdf output.pdf
+   ```
+
+5. Applicable presets add `Page X of Y` with PyMuPDF. Archival PDF/A intentionally
+   skips this modification.
+6. The application restores the source Modified Date, validates the staged
+   output, rechecks file identities, and publishes without overwriting.
+7. Only then does it apply the requested move, copy, or keep action to the
+   source.
+
+## Important project files
+
+- `app_metadata.json` — application version and Explorer integration metadata.
+- `pdf_automation_v6.2.py` — conversion, validation, and file-handling logic.
+- `run_single_pdf.bat` — packaged/source Explorer launcher.
+- `bootstrap.ps1` — approved source-environment setup and verification.
+- `requirements.txt` and `requirements-lock.txt` — dependency entry point and
+  complete hash-locked Windows CPython 3.14 dependency set.
+- `trusted-artifacts.json` and `trusted_artifacts.ps1` — approved versions,
+  hashes, inventories, and verification functions.
+- `setup_installed_app.ps1` — packaged payload verification and runtime setup.
+- `installer\` — Inno Setup release build files.
+- `HOW_TO_USE.txt` — short instructions installed with the application.
+- `RIGHT_CLICK_CONTEXT_MENU.md` — Explorer integration and repair details.
+- `PARKING_LOT.md` — evaluated future work and the remaining security follow-up.
+- `archives\` — inactive historical scripts and documentation.
 
 ## License
 
@@ -269,87 +369,11 @@ project uses their open-source distributions and does not grant a commercial
 license to them.
 
 The packaged Ghostscript runtime is version 10.07.0. Its AGPL text is installed
-at `vendor\ghostscript\doc\COPYING`. The exact corresponding source archive is
-[`ghostscript-10.07.0.tar.xz`](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz),
-with SHA-256
-`ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1`
-and SHA-512
-`1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9`.
-PDFConvertOCR releases that bundle this runtime also publish that source archive
-as a release asset.
+at `vendor\ghostscript\doc\COPYING`. The matching source archive is
+[`ghostscript-10.07.0.tar.xz`](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz).
 
-Review third-party licenses before distributing the installer, especially
-PyMuPDF and Ghostscript's AGPL/commercial licensing.
+- SHA-256: `ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1`
+- SHA-512: `1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9`
 
-## How it Works
-
-### Unlock Check
-The script opens the PDF with PyMuPDF and checks permissions for printing and copying. If restricted, it creates an unrestricted copy with Ghostscript:
-```
-gswin64c.exe -o unlocked.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/default input.pdf
-```
-
-### OCR with Compression
-OCR is performed with OCRmyPDF using settings that preserve text quality and reduce size:
-```
-ocrmypdf.exe -l eng --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf --deskew input.pdf output.pdf
-```
-- `--skip-text` OCRs only pages that do not already have text.
-- `--optimize 3` and `--jpeg-quality 40` prioritize smaller output size.
-- `--optimize 3` requires the external `pngquant.exe` program; it is not a Python package and does not belong in `requirements.txt`.
-- `--output-type pdf` writes standard searchable PDF output.
-- **Straighten and rotate** adds `--rotate-pages`; **Small file** changes JPEG
-  quality to 25; **Archival PDF/A** uses `--output-type pdfa` and skips page
-  numbering to avoid modifying that output afterward.
-
-### Dependency Resolution
-- The script checks for Ghostscript, Tesseract, pngquant, and OCRmyPDF before processing.
-- The script accepts `ocrmypdf.exe` only from the packaged `python\Scripts`
-  directory or `C:\LocalVenvs\pdfconvertOCR\Scripts`.
-- PATH entries, other user profiles, unrelated environments, and recursive
-  executable searches are not accepted for OCRmyPDF.
-- A symlink, junction, or other Windows reparse point in either approved
-  OCRmyPDF runtime path is rejected.
-- Packaged installs prepend bundled runtime folders to PATH so OCRmyPDF can launch Ghostscript, Tesseract, and pngquant.
-
-### Page Numbering
-After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each page.
-
-### Modified Date
-After OCR and page numbering are complete, the script sets the generated `*_OCR.pdf` file's Modified Date to match the source PDF.
-
-### Temp files and originals
-- The verified source is copied into a private temporary snapshot; OCR and
-  validation read that snapshot rather than repeatedly reopening the selected
-  pathname.
-- Intermediate files live in a temporary directory and are cleaned after each file.
-- Originals are archived with a timestamp and short UUID suffix to prevent name collisions (`<name>_YYYYMMDD_HHMMSS_<id>.pdf`).
-
-## Troubleshooting
-- **Script fails silently**: The most common cause is a missing dependency. Ensure both Ghostscript and Tesseract are installed and their paths are correctly configured in your system's environment variables.
-- **Packaged right-click install fails with `ModuleNotFoundError: No module named 'fitz'`**: Rerun the installer or run `setup_installed_app.ps1` from `%LOCALAPPDATA%\PDFConvertOCR`. It verifies every bundled payload, replaces the Python runtime from the approved offline installer, and installs the complete hash-locked wheel set.
-- **Setup or build reports an integrity, digest, reparse-point, or signer failure**: Stop and obtain a fresh trusted installer or restore the reviewed build input. Do not bypass the check or update `trusted-artifacts.json` until the changed artifact's provenance has been independently verified.
-- **Source bootstrap rejects the Python environment**: Run `bootstrap.ps1 -VerifyOnly` for the exact mismatch. If the approved source runtime is intact but `C:\LocalVenvs\pdfconvertOCR` is stale or damaged, rerun with `-Recreate`.
-- **OCRmyPDF is reported missing even though another copy is on PATH**: PATH copies are intentionally ignored. Run `bootstrap.ps1` for a source checkout or rerun packaged setup so OCRmyPDF is installed in an approved runtime.
-- **The PDF is rejected as linked, redirected, or changed**: Use the original
-  ordinary file rather than a shortcut, symbolic link, junction, hard link, or
-  NTFS alternate data stream. If another program is updating the PDF, wait for
-  it to finish or copy the completed PDF to a normal local filename and retry.
-- **Very large, complex, or unusually numerous PDFs**: Resource ceilings are
-  not yet enforced around every parser and batch operation. Until measured
-  limits are implemented, process unexpected or untrusted documents
-  individually and avoid unattended oversized batches.
-- **`Could not find program 'pngquant' on the PATH`**:
-  - Cause: OCRmyPDF needs the external `pngquant.exe` tool when the script uses `--optimize 3`.
-  - Fix:
-  ```powershell
-  choco install pngquant -y
-  ```
-- **`SystemError` about `pydantic-core` incompatibility**: Repair the approved
-  runtime with `bootstrap.ps1 -Recreate` for a source checkout or rerun packaged
-  setup. Global or user-level Python packages are not supported runtime inputs.
-- **ChatGPT says "No text can be extracted"**: For a stubborn file, you can force re-OCR on every page with this manual command, though it may increase file size:
-  ```bat
-  ocrmypdf --force-ocr --output-type pdf "input.pdf" "fixed.pdf"
-  ```
-- **Want to tweak quality**: Adjust `--jpeg-quality` (e.g., 75 for smaller files or 95 for higher quality).
+Every release that bundles this Ghostscript runtime must also publish that
+corresponding source archive.

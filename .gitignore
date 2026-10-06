@@ -3,6 +3,7 @@ _processed/
 _complete/
 logs/
 *.log
+/OUTPUT.txt
 dist/
 
 # Local dev-toolbox synchronization backups

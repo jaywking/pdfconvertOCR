@@ -2,10 +2,10 @@
 #define MyAppName "PDFConvertOCR"
 #endif
 #ifndef MyAppVersion
-#define MyAppVersion "6.2.1"
+#define MyAppVersion "6.2.2"
 #endif
 #ifndef MyDisplayVersion
-#define MyDisplayVersion "6.2.1"
+#define MyDisplayVersion "6.2.2"
 #endif
 #ifndef MyMenuLabel
 #define MyMenuLabel "Convert to OCR (v6.2)"
@@ -86,6 +86,9 @@ Type: filesandordirs; Name: "{app}\vendor\tesseract"
 Type: filesandordirs; Name: "{app}\vendor\pngquant"
 
 [Code]
+var
+  RuntimeSetupExitCode: Integer;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
@@ -97,13 +100,26 @@ begin
   end;
   if CurStep = ssPostInstall then
   begin
-    if (not Exec(
+    if not Exec(
       ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
       '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\setup_installed_app.ps1') + '"',
       '', SW_HIDE, ewWaitUntilTerminated, ResultCode
-    )) or (ResultCode <> 0) then
+    ) then
+    begin
+      RuntimeSetupExitCode := 1;
+      RaiseException(Format('PDFConvertOCR runtime setup could not start: %s', [SysErrorMessage(DLLGetLastError)]));
+    end;
+    if ResultCode <> 0 then
+    begin
+      RuntimeSetupExitCode := ResultCode;
       RaiseException(Format('PDFConvertOCR runtime setup failed with exit code %d.', [ResultCode]));
+    end;
   end;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  Result := RuntimeSetupExitCode;
 end;
 
 [Icons]
@@ -119,6 +135,7 @@ Type: filesandordirs; Name: "{app}\python"
 Type: filesandordirs; Name: "{app}\vendor"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\__pycache__"
+Type: files; Name: "{app}\setup_runtime.log"
 Type: dirifempty; Name: "{app}\_complete"
 Type: dirifempty; Name: "{app}\_processed"
 Type: dirifempty; Name: "{app}"

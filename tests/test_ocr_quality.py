@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -8,6 +9,9 @@ from unittest.mock import patch
 MODULE_PATH = Path(__file__).resolve().parents[1] / "pdf_automation_v6.2.py"
 SETUP_PATH = Path(__file__).resolve().parents[1] / "setup_installed_app.ps1"
 INSTALLER_PATH = Path(__file__).resolve().parents[1] / "installer" / "PDFConvertOCR.iss"
+METADATA_PATH = Path(__file__).resolve().parents[1] / "app_metadata.json"
+POLICY_PATH = Path(__file__).resolve().parents[1] / "trusted-artifacts.json"
+LOCK_PATH = Path(__file__).resolve().parents[1] / "requirements-lock.txt"
 SPEC = importlib.util.spec_from_file_location("pdf_automation_v6_1_quality", MODULE_PATH)
 app = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = app
@@ -64,15 +68,18 @@ class OcrQualityTests(unittest.TestCase):
 
     def test_packaged_runtime_includes_and_verifies_tkinter(self):
         setup_script = SETUP_PATH.read_text(encoding="utf-8")
-        self.assertIn('"Include_tcltk=1"', setup_script)
+        self.assertIn('"tcltk.msi"', setup_script)
         self.assertIn('import tkinter, pymupdf, ocrmypdf', setup_script)
         self.assertIn("Assert-FileSha256 -Path $PythonInstaller", setup_script)
         self.assertIn("Remove-Item -LiteralPath $PythonDir -Recurse -Force", setup_script)
-        self.assertIn('(@("/quiet") + $PythonInstallOptions)', setup_script)
+        self.assertIn('Start-Process -FilePath $WindowsInstaller', setup_script)
+        self.assertIn('& $PythonExe -m ensurepip --upgrade', setup_script)
 
     def test_installer_propagates_runtime_setup_failures(self):
         installer_script = INSTALLER_PATH.read_text(encoding="utf-8")
         self.assertIn("ResultCode <> 0", installer_script)
+        self.assertIn("RuntimeSetupExitCode := ResultCode", installer_script)
+        self.assertIn("function GetCustomSetupExitCode: Integer", installer_script)
         self.assertIn("RaiseException", installer_script)
 
     def test_installer_removes_all_old_vendor_trees_before_upgrade(self):
@@ -82,6 +89,26 @@ class OcrQualityTests(unittest.TestCase):
                 f'Type: filesandordirs; Name: "{{app}}\\vendor\\{component}"',
                 installer_script,
             )
+
+    def test_release_dependency_policy_is_pinned(self):
+        metadata = json.loads(METADATA_PATH.read_text(encoding="utf-8"))
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        lock = LOCK_PATH.read_text(encoding="utf-8")
+
+        self.assertEqual(metadata["appVersion"], "6.2.2")
+        self.assertEqual(metadata["displayVersion"], "6.2.2")
+        self.assertEqual(metadata["menuLabel"], "Convert to OCR (v6.2)")
+        self.assertEqual(metadata["contextVerb"], "ConvertToOCRv6.2")
+        self.assertEqual(policy["runtimes"]["ghostscript"]["version"], "10.08.0")
+        self.assertEqual(policy["wheelhouse"]["fileCount"], 32)
+        for package in (
+            "ocrmypdf==17.13.0",
+            "pikepdf==10.16.0",
+            "fpdf2==2.8.9",
+            "PyMuPDF==1.28.2",
+        ):
+            self.assertIn(package, lock)
+        self.assertNotIn("pi-heif", lock)
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ This project implements the Explorer right-click action with these pieces:
 For non-technical users, the preferred path is the Inno Setup installer:
 
 ```text
-PDFConvertOCR-Setup-v6.2.1.exe
+PDFConvertOCR-Setup-v6.2.2.exe
 ```
 
 That installer copies the app to:

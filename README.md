@@ -1,4 +1,4 @@
-# PDFConvertOCR 6.2.1
+# PDFConvertOCR 6.2.2
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
@@ -17,8 +17,8 @@ For most users, install the packaged application:
 
 PDFConvertOCR requires Windows 10 or 11.
 
-1. Open the [PDFConvertOCR 6.2.1 release](https://github.com/jaywking/pdfconvertOCR/releases/tag/v6.2.1).
-2. Download `PDFConvertOCR-Setup-v6.2.1.exe`.
+1. Open the [PDFConvertOCR 6.2.2 release](https://github.com/jaywking/pdfconvertOCR/releases/tag/v6.2.2).
+2. Download `PDFConvertOCR-Setup-v6.2.2.exe`.
 3. Run the installer.
 4. Right-click a PDF in File Explorer and choose **Convert to OCR (v6.2)**.
 
@@ -28,11 +28,8 @@ It verifies the approved bundled payload before installing or executing it.
 
 The current installer is not Authenticode-signed, so Windows may identify its
 publisher as unknown. Download it only from the official release above. The
-SHA-256 of the 6.2.1 installer is:
-
-```text
-853f0c13067b767cd1a331efd31bc60b53677680c0a94f8aee6bd0cabf410f87
-```
+release includes `SHA256SUMS.txt`; verify the installer against that checksum
+file before running it.
 
 ## Everyday use
 
@@ -270,21 +267,25 @@ Compile an already staged payload after performing the same integrity checks:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1 -SkipVendorRefresh
 ```
 
-The build writes both required release assets:
+The build writes the two payload assets:
 
 ```text
-dist\PDFConvertOCR-Setup-v6.2.1.exe
-dist\ghostscript-10.07.0.tar.xz
+dist\PDFConvertOCR-Setup-v6.2.2.exe
+dist\ghostscript-10.08.0.tar.xz
 ```
 
-Publish both files together. The Ghostscript source archive is downloaded from
-the pinned Artifex URL and must match the SHA-256 in
+Create `dist\SHA256SUMS.txt` containing the SHA-256 of both payload assets, then
+publish all three files together. The Ghostscript source archive is downloaded
+from the pinned Artifex URL and must match the SHA-256 in
 `trusted-artifacts.json`.
 
 The packaged runtime is Python 3.14.7. The build derives the CPython feature
 and ABI wheel target from that version, removes prior staged vendor trees, and
 installs only the complete hash-locked offline dependency set. Tcl/Tk is
-included for the Explorer conversion-options window.
+included for the Explorer conversion-options window. The v6.2.2 dependency set
+includes OCRmyPDF 17.13.0, pikepdf 10.16.0, fpdf2 2.8.9, and PyMuPDF 1.28.2.
+`pi-heif` is not included because HEIC input is outside PDFConvertOCR's accepted
+input formats.
 
 When intentionally changing a dependency, Python version, native runtime, or
 build tool, independently verify its provenance, update the appropriate lock or
@@ -299,8 +300,9 @@ a digest solely to make an unexpected file pass.
   the Inno Setup signer, the downloaded Python installer, and complete vendor
   inventories before compilation.
 - Packaged setup verifies the same inventories before executing the Python
-  installer or importing packages. There is no network or unpinned-package
-  fallback during packaged setup.
+  component payload. It uses non-registering administrative extraction so an
+  existing user Python installation is not modified. There is no network or
+  unpinned-package fallback during packaged setup.
 - Runtime OCR accepts `ocrmypdf.exe` only from the packaged
   `python\Scripts` directory or `C:\LocalVenvs\pdfconvertOCR\Scripts` and
   rejects a trusted path containing a symlink or redirecting Windows reparse
@@ -368,12 +370,12 @@ Ghostscript are offered under AGPL or separate commercial licensing; this
 project uses their open-source distributions and does not grant a commercial
 license to them.
 
-The packaged Ghostscript runtime is version 10.07.0. Its AGPL text is installed
+The packaged Ghostscript runtime is version 10.08.0. Its AGPL text is installed
 at `vendor\ghostscript\doc\COPYING`. The matching source archive is
-[`ghostscript-10.07.0.tar.xz`](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz).
+[`ghostscript-10.08.0.tar.xz`](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/ghostscript-10.08.0.tar.xz).
 
-- SHA-256: `ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1`
-- SHA-512: `1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9`
+- SHA-256: `c20492bc8ebb96c87fa2e52a0926e1cda8cde95d66145e018ac713fed5da38cf`
+- SHA-512: `8006e2a32d03759a905b9548bdd83d4563173041006750e17e428b9eea24ad519aa4452ceecd7c073d3c420a68bf1b07ccc9e0533b1a05935f6b39ea8d9ce875`
 
 Every release that bundles this Ghostscript runtime must also publish that
 corresponding source archive.

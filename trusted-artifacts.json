@@ -10,22 +10,22 @@
   },
   "wheelhouse": {
     "requirementsFile": "requirements-lock.txt",
-    "fileCount": 28,
-    "treeSha256": "ea96c6d968b57e38549e057a785141307adb920cb33bcac132550226345c7393"
+    "fileCount": 32,
+    "treeSha256": "9d5abd8fdc69573ed4b81051da0074540d7835c5b096c55405fe4f566875e748"
   },
   "runtimes": {
     "ghostscript": {
-      "sourcePath": "C:\\Program Files\\gs\\gs10.07.0",
-      "version": "10.07.0",
+      "sourcePath": "C:\\Program Files\\gs\\gs10.08.0",
+      "version": "10.08.0",
       "executableRelativePath": "bin\\gswin64c.exe",
-      "executableSha256": "95855fb18d4e3f3ae428a3e15edef2ce6fd3a85c7c40fcb32aad140364305dd8",
+      "executableSha256": "9b29d3b5128c6d53bb4e9eee77e3919d05038cdfdd8e07697af4d9c319f9d5ad",
       "licenseRelativePath": "doc\\COPYING",
-      "sourceArchiveName": "ghostscript-10.07.0.tar.xz",
-      "sourceUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz",
-      "sourceChecksumsUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/SHA512SUMS",
-      "sourceSha256": "ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1",
-      "sourceSha512": "1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9",
-      "treeSha256": "446dbeee4193b98c5e3d10b61bfc7700a0a60f4615ce3205eaa315c929a7f0f0"
+      "sourceArchiveName": "ghostscript-10.08.0.tar.xz",
+      "sourceUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/ghostscript-10.08.0.tar.xz",
+      "sourceChecksumsUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/SHA512SUMS",
+      "sourceSha256": "c20492bc8ebb96c87fa2e52a0926e1cda8cde95d66145e018ac713fed5da38cf",
+      "sourceSha512": "8006e2a32d03759a905b9548bdd83d4563173041006750e17e428b9eea24ad519aa4452ceecd7c073d3c420a68bf1b07ccc9e0533b1a05935f6b39ea8d9ce875",
+      "treeSha256": "97eee4f7ccf19fe944e4acf4ad83576244073a310875a6f454fd38569a46a3bf"
     },
     "tesseract": {
       "sourcePath": "C:\\Program Files\\Tesseract-OCR",
@@ -52,9 +52,9 @@
       "path": "C:\\LocalVenvs\\pdfconvertOCR\\Scripts\\python.exe",
       "sha256": "4b8c3912806b3c1591ba3cb403bff77ad309c3fe5756f87c20b7a6f8f0174262",
       "pyvenvConfigSha256": "416ba654a2c4c88c4a719fcdd1e87f01d31640360c9a8b20ce717195471e8860",
-      "pipVersion": "26.1.2",
-      "pipTreeSha256": "7597b88dbebb07de6605e8dc636bc97b92fef74e975c60cc15d94209258175cb",
-      "pipMetadataTreeSha256": "5ff16434c53981c8aa360a893c106cb13ad2011ad8c5e75d2707b275d6fb321a",
+      "pipVersion": "26.0.1",
+      "pipTreeSha256": "e6783d7cb9bdeb363128643aa1b138f90eb789dfe5b876147dc4ab2be2ab802e",
+      "pipMetadataTreeSha256": "dbac8f8ac628ed80399cdedb55ee8008d951b2d554be05fc0c9318481e0b2c4e",
       "signerSubjectContains": "O=Python Software Foundation"
     },
     "iscc": {

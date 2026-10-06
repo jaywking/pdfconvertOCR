@@ -1,8 +1,8 @@
 {
   "appName": "PDFConvertOCR",
   "publisher": "jaywking",
-  "appVersion": "6.2.1",
-  "displayVersion": "6.2.1",
+  "appVersion": "6.2.2",
+  "displayVersion": "6.2.2",
   "menuLabel": "Convert to OCR (v6.2)",
   "contextVerb": "ConvertToOCRv6.2",
   "mainScript": "pdf_automation_v6.2.py",

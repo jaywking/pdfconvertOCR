@@ -9,6 +9,20 @@ function Get-TrustedArtifactPolicy {
     return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+function Get-FileSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $stream = [IO.File]::OpenRead($Path)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Assert-FileSha256 {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -19,7 +33,7 @@ function Assert-FileSha256 {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "$Label not found: $Path"
     }
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    $actual = Get-FileSha256 -Path $Path
     if ($actual -ne $ExpectedSha256.ToLowerInvariant()) {
         throw "$Label failed SHA-256 verification: $Path (expected $ExpectedSha256, got $actual)"
     }
@@ -46,7 +60,7 @@ function Get-DirectoryTreeSha256 {
 
     $entries = @($items | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
         $relative = $_.FullName.Substring($root.Length + 1).Replace("\", "/").ToLowerInvariant()
-        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+        $hash = Get-FileSha256 -Path $_.FullName
         $relative + [char]0 + $hash
     })
     [Array]::Sort($entries, [StringComparer]::Ordinal)

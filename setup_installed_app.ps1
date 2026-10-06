@@ -6,6 +6,14 @@ if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyCo
 }
 
 $AppRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$SetupLog = Join-Path $AppRoot "setup_runtime.log"
+Start-Transcript -LiteralPath $SetupLog -Force | Out-Null
+$WindowsPowerShellModules = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\Modules"
+if (-not (Test-Path -LiteralPath $WindowsPowerShellModules -PathType Container)) {
+    throw "Windows PowerShell module directory not found: $WindowsPowerShellModules"
+}
+$env:PSModulePath = $WindowsPowerShellModules
+Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
 $PythonDir = Join-Path $AppRoot "python"
 $PythonExe = Join-Path $PythonDir "python.exe"
 $PolicyPath = Join-Path $AppRoot "trusted-artifacts.json"
@@ -34,6 +42,8 @@ Assert-DirectoryTreeSha256 -Path (Join-Path $AppRoot "vendor\pngquant") -Expecte
 
 if ($VerifyOnly) {
     Write-Host "Verified all packaged runtime payloads; installation was skipped."
+    Stop-Transcript | Out-Null
+    Remove-Item -LiteralPath $SetupLog -Force
     return
 }
 
@@ -53,23 +63,33 @@ if (Test-Path -LiteralPath $PythonDir) {
 }
 New-Item -ItemType Directory -Path $PythonDir -Force | Out-Null
 
-$PythonInstallOptions = @(
-    "InstallAllUsers=0",
-    "AssociateFiles=0",
-    "PrependPath=0",
-    "Include_dev=0",
-    "Include_doc=0",
-    "Include_launcher=0",
-    "Include_pip=1",
-    "Shortcuts=0",
-    "Include_tcltk=1",
-    "Include_test=0",
-    "TargetDir=$PythonDir"
-)
-Write-Host "Installing verified bundled Python runtime $($Policy.python.version)..."
-$process = Start-Process -FilePath $PythonInstaller -ArgumentList (@("/quiet") + $PythonInstallOptions) -Wait -NoNewWindow -PassThru
-if ($process.ExitCode -ne 0) {
-    throw "Bundled Python installation failed with exit code $($process.ExitCode)."
+# Extract a private runtime without registering the CPython bundle. Running the
+# bundle directly enters maintenance mode when the same Python feature release
+# is already installed for the user and can modify that unrelated installation
+# instead of populating TargetDir. Administrative MSI extraction is side-by-side
+# safe and does not register products, file associations, or PATH entries.
+$PythonComponents = @("core.msi", "exe.msi", "lib.msi", "tcltk.msi", "ucrt.msi")
+$WindowsInstaller = Join-Path $env:SystemRoot "System32\msiexec.exe"
+Write-Host "Extracting verified bundled Python runtime $($Policy.python.version)..."
+foreach ($componentName in $PythonComponents) {
+    $componentPath = Join-Path $PythonVendor $componentName
+    if (-not (Test-Path -LiteralPath $componentPath -PathType Leaf)) {
+        throw "Bundled Python component is missing: $componentPath"
+    }
+    $arguments = @(
+        "/a",
+        ('"' + $componentPath + '"'),
+        "/qn",
+        ('TARGETDIR="' + $PythonDir + '"')
+    )
+    $process = Start-Process -FilePath $WindowsInstaller -ArgumentList $arguments -Wait -NoNewWindow -PassThru
+    if ($process.ExitCode -ne 0) {
+        throw "Bundled Python component $componentName failed extraction with exit code $($process.ExitCode)."
+    }
+    $administrativeDatabase = Join-Path $PythonDir $componentName
+    if (Test-Path -LiteralPath $administrativeDatabase -PathType Leaf) {
+        Remove-Item -LiteralPath $administrativeDatabase -Force
+    }
 }
 if (-not (Test-Path -LiteralPath $PythonExe -PathType Leaf)) {
     throw "Python runtime was not installed at $PythonExe"
@@ -80,12 +100,9 @@ if ($LASTEXITCODE -ne 0 -or $installedVersion -ne $Policy.python.version) {
     throw "Installed Python version $installedVersion does not match approved version $($Policy.python.version)."
 }
 
-& $PythonExe -m pip --version
+& $PythonExe -m ensurepip --upgrade
 if ($LASTEXITCODE -ne 0) {
-    & $PythonExe -m ensurepip --upgrade
-    if ($LASTEXITCODE -ne 0) {
-        throw "pip bootstrap failed with exit code $LASTEXITCODE."
-    }
+    throw "pip bootstrap failed with exit code $LASTEXITCODE."
 }
 
 Write-Host "Installing verified Python packages from the offline wheelhouse..."
@@ -107,3 +124,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "PDFConvertOCR installation setup complete."
+Stop-Transcript | Out-Null
+Remove-Item -LiteralPath $SetupLog -Force

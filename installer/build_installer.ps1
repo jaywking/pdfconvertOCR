@@ -74,6 +74,27 @@ function Save-TrustedUrl {
     Assert-AuthenticodeSigner -Path $Destination -SubjectContains $SignerSubjectContains -Label "cached Python installer"
 }
 
+function Save-TrustedFile {
+    param(
+        [string]$Url,
+        [string]$Destination,
+        [string]$ExpectedSha256,
+        [string]$Label
+    )
+
+    if (-not (Test-Path -LiteralPath $Destination)) {
+        $temporary = "$Destination.download"
+        if (Test-Path -LiteralPath $temporary) {
+            Remove-Item -LiteralPath $temporary -Force
+        }
+        Write-Host "Downloading $Url"
+        Invoke-WebRequest -Uri $Url -OutFile $temporary
+        Assert-FileSha256 -Path $temporary -ExpectedSha256 $ExpectedSha256 -Label $Label
+        Move-Item -LiteralPath $temporary -Destination $Destination
+    }
+    Assert-FileSha256 -Path $Destination -ExpectedSha256 $ExpectedSha256 -Label $Label
+}
+
 function Initialize-PythonOfflineLayout {
     param(
         [string]$InstallerPath,
@@ -118,6 +139,16 @@ function Assert-VendorPayload {
         throw "Wheelhouse contains $wheelCount files; expected $($Policy.wheelhouse.fileCount)."
     }
     Assert-DirectoryTreeSha256 -Path $ghostscriptVendor -ExpectedSha256 $Policy.runtimes.ghostscript.treeSha256 -Label "Ghostscript vendor payload"
+    $ghostscriptExecutable = Join-Path $ghostscriptVendor $Policy.runtimes.ghostscript.executableRelativePath
+    Assert-FileSha256 -Path $ghostscriptExecutable -ExpectedSha256 $Policy.runtimes.ghostscript.executableSha256 -Label "Ghostscript executable"
+    $ghostscriptVersion = (Get-Item -LiteralPath $ghostscriptExecutable).VersionInfo.FileVersion
+    if ($ghostscriptVersion -ne $Policy.runtimes.ghostscript.version) {
+        throw "Ghostscript executable version $ghostscriptVersion does not match approved version $($Policy.runtimes.ghostscript.version)."
+    }
+    $ghostscriptLicense = Join-Path $ghostscriptVendor $Policy.runtimes.ghostscript.licenseRelativePath
+    if (-not (Test-Path -LiteralPath $ghostscriptLicense -PathType Leaf)) {
+        throw "Ghostscript AGPL license not found: $ghostscriptLicense"
+    }
     Assert-DirectoryTreeSha256 -Path $tesseractVendor -ExpectedSha256 $Policy.runtimes.tesseract.treeSha256 -Label "Tesseract vendor payload"
     Assert-DirectoryTreeSha256 -Path $pngquantVendor -ExpectedSha256 $Policy.runtimes.pngquant.treeSha256 -Label "pngquant vendor payload"
 }
@@ -240,7 +271,12 @@ Review and comply with each component's license before distributing this install
 Bundled components:
 - Python: Python Software Foundation License. Installer downloaded from python.org.
 - OCRmyPDF and Python wheels: licenses vary by package; inspect wheel metadata in vendor\wheelhouse.
-- Ghostscript: AGPL/commercial licensing from Artifex. Verify redistribution and organizational use before public distribution.
+- Ghostscript $($Policy.runtimes.ghostscript.version): GNU Affero General Public License version 3 or a separate Artifex commercial license.
+  Bundled license: vendor\ghostscript\$($Policy.runtimes.ghostscript.licenseRelativePath)
+  Corresponding source archive: $($Policy.runtimes.ghostscript.sourceUrl)
+  Official checksum file: $($Policy.runtimes.ghostscript.sourceChecksumsUrl)
+  Source SHA-256: $($Policy.runtimes.ghostscript.sourceSha256)
+  Source SHA-512: $($Policy.runtimes.ghostscript.sourceSha512)
 - Tesseract OCR: Apache 2.0 license; language data may have separate notices.
 - pngquant: GPL-style open source licensing; verify the exact binary/package license for the copied executable.
 
@@ -256,6 +292,20 @@ if ($VerifyOnly) {
     Write-Host "Verification complete; installer compilation was skipped."
     return
 }
+
+$GhostscriptSourceCachePath = Join-Path $CacheRoot $Policy.runtimes.ghostscript.sourceArchiveName
+$GhostscriptSourceDistPath = Join-Path $DistRoot $Policy.runtimes.ghostscript.sourceArchiveName
+Save-TrustedFile `
+    -Url $Policy.runtimes.ghostscript.sourceUrl `
+    -Destination $GhostscriptSourceCachePath `
+    -ExpectedSha256 $Policy.runtimes.ghostscript.sourceSha256 `
+    -Label "Ghostscript corresponding source archive"
+Copy-Item -LiteralPath $GhostscriptSourceCachePath -Destination $GhostscriptSourceDistPath -Force
+Assert-FileSha256 `
+    -Path $GhostscriptSourceDistPath `
+    -ExpectedSha256 $Policy.runtimes.ghostscript.sourceSha256 `
+    -Label "staged Ghostscript corresponding source archive"
+Write-Host "Staged Ghostscript corresponding source: $GhostscriptSourceDistPath"
 
 Write-Host "Compiling installer with verified compiler $Iscc"
 $IsccArgs = @(

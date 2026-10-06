@@ -1,5 +1,7 @@
 import importlib.util
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -33,6 +35,10 @@ class SafetyReliabilityTests(unittest.TestCase):
         self.original_locked = app.is_pdf_locked
         self.original_action = app.apply_original_action
         self.original_page_numbers = app.add_page_numbers
+        self.original_publish = app.publish_staged_output
+        self.original_validate_final = app.validate_final_output
+        self.original_unique_archive = app.unique_archive_path
+        self.original_next_output = app.next_output_path
         app.is_pdf_locked = lambda _path: False
 
     def tearDown(self) -> None:
@@ -40,6 +46,10 @@ class SafetyReliabilityTests(unittest.TestCase):
         app.is_pdf_locked = self.original_locked
         app.apply_original_action = self.original_action
         app.add_page_numbers = self.original_page_numbers
+        app.publish_staged_output = self.original_publish
+        app.validate_final_output = self.original_validate_final
+        app.unique_archive_path = self.original_unique_archive
+        app.next_output_path = self.original_next_output
         self.tmp.cleanup()
 
     def fake_ocr(self, source: str, destination: str, _tools, _options) -> tuple[bool, str | None]:
@@ -109,6 +119,228 @@ class SafetyReliabilityTests(unittest.TestCase):
             self.tools,
             action,
         )
+
+    def make_junction(self, link: Path, target: Path) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows directory junctions are required")
+        result = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode != 0:
+            self.skipTest(f"Could not create a Windows junction: {result.stderr}")
+
+    def test_hard_linked_input_is_rejected_before_processing(self) -> None:
+        target = self.root / "Private.pdf"
+        selected = self.root / "Selected.pdf"
+        make_pdf(target, "Private target text")
+        os.link(target, selected)
+
+        result = self.process(selected, "move")
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("exactly one hard link", result.error)
+        self.assertTrue(target.exists())
+        self.assertTrue(selected.exists())
+        self.assertFalse(list(self.root.glob("Selected_OCR*.pdf")))
+        self.assertFalse((self.root / "Originals").exists())
+
+    def test_parent_junction_input_is_rejected_without_moving_target(self) -> None:
+        target_dir = self.root / "target"
+        target_dir.mkdir()
+        target = target_dir / "Target.pdf"
+        make_pdf(target, "Junction target")
+        junction = self.root / "linked-folder"
+        self.make_junction(junction, target_dir)
+        try:
+            result = self.process(junction / "Target.pdf", "move")
+
+            self.assertEqual(result.status, "failed")
+            self.assertIn("reparse point", result.error)
+            self.assertTrue(target.exists())
+            self.assertFalse(list(target_dir.glob("Target_OCR*.pdf")))
+            self.assertFalse((target_dir / "Originals").exists())
+        finally:
+            if junction.exists():
+                os.rmdir(junction)
+
+    def test_batch_root_junction_is_rejected_before_discovery(self) -> None:
+        target_dir = self.root / "batch-target"
+        target_dir.mkdir()
+        make_pdf(target_dir / "Target.pdf")
+        junction = self.root / "batch-root"
+        self.make_junction(junction, target_dir)
+        config = app.AppConfig(
+            self.root,
+            junction,
+            junction,
+            junction / "_processed",
+            junction / "_complete",
+            junction / "logs",
+        )
+        try:
+            app.process_batch(
+                config,
+                self.tools,
+                "move",
+                app.ConversionOptions(app.QUALITY_PRESETS["standard"], ("eng",)),
+            )
+
+            self.assertTrue((target_dir / "Target.pdf").exists())
+            self.assertFalse((target_dir / "_complete").exists())
+            self.assertFalse((target_dir / "_processed").exists())
+        finally:
+            if junction.exists():
+                os.rmdir(junction)
+
+    def test_batch_ignores_hard_linked_pdf_entry(self) -> None:
+        target = self.root / "private-target.bin"
+        selected = self.root / "Selected.pdf"
+        make_pdf(target, "Batch hard-link target")
+        os.link(target, selected)
+        config = app.AppConfig(
+            self.root,
+            self.root,
+            self.root,
+            self.root / "_processed",
+            self.root / "_complete",
+            self.root / "logs",
+        )
+
+        app.process_batch(
+            config,
+            self.tools,
+            "move",
+            app.ConversionOptions(app.QUALITY_PRESETS["standard"], ("eng",)),
+        )
+
+        self.assertTrue(target.exists())
+        self.assertTrue(selected.exists())
+        self.assertFalse((self.root / "_complete").exists())
+        self.assertFalse((self.root / "_processed").exists())
+
+    def test_ntfs_alternate_data_stream_input_is_rejected(self) -> None:
+        if os.name != "nt":
+            self.skipTest("NTFS alternate data streams are Windows-specific")
+        result = self.process(self.root / "Carrier.pdf:Hidden.pdf", "move")
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("alternate data stream", result.error)
+
+    def test_source_replacement_after_validation_blocks_publication(self) -> None:
+        source = self.root / "ReplaceBeforePublish.pdf"
+        replacement = self.root / "Replacement.pdf"
+        make_pdf(source, "Original identity")
+        make_pdf(replacement, "Replacement identity")
+
+        def replace_after_validation(final_pdf, expected_pages, source_stat):
+            result = self.original_validate_final(final_pdf, expected_pages, source_stat)
+            os.replace(replacement, source)
+            return result
+
+        app.validate_final_output = replace_after_validation
+        result = self.process(source, "move")
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("changed before output publication", result.error)
+        self.assertTrue(source.exists())
+        self.assertFalse(list(self.root.glob("ReplaceBeforePublish_OCR*.pdf")))
+        self.assertFalse((self.root / "Originals").exists())
+
+    def test_in_place_source_mutation_blocks_publication(self) -> None:
+        source = self.root / "MutatedBeforePublish.pdf"
+        replacement = self.root / "Replacement.pdf"
+        make_pdf(source, "Original identity")
+        make_pdf(replacement, "Replacement identity with a different size")
+
+        def mutate_after_validation(final_pdf, expected_pages, source_stat):
+            result = self.original_validate_final(final_pdf, expected_pages, source_stat)
+            source.write_bytes(replacement.read_bytes())
+            return result
+
+        app.validate_final_output = mutate_after_validation
+        result = self.process(source, "move")
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("changed before output publication", result.error)
+        self.assertTrue(source.exists())
+        self.assertFalse(list(self.root.glob("MutatedBeforePublish_OCR*.pdf")))
+        self.assertFalse((self.root / "Originals").exists())
+
+    def test_source_replacement_after_publication_is_not_moved(self) -> None:
+        source = self.root / "ReplaceBeforeMove.pdf"
+        replacement = self.root / "Replacement.pdf"
+        make_pdf(source, "Original identity")
+        make_pdf(replacement, "Replacement identity")
+
+        def replace_after_publication(staged_path, output_dir, stem, expected_identity):
+            published = self.original_publish(
+                staged_path, output_dir, stem, expected_identity
+            )
+            os.replace(replacement, source)
+            return published
+
+        app.publish_staged_output = replace_after_publication
+        result = self.process(source, "move")
+
+        self.assertEqual(result.status, "failed")
+        self.assertTrue(result.verified)
+        self.assertIn("changed before the original-file move", result.error)
+        self.assertTrue(source.exists())
+        self.assertTrue(Path(result.output_path).exists())
+        self.assertFalse(list((self.root / "Originals").glob("*.pdf")))
+
+    def test_original_action_rechecks_after_archive_path_creation(self) -> None:
+        for action in ("copy", "move"):
+            with self.subTest(action=action):
+                case_dir = self.root / action
+                case_dir.mkdir()
+                source = case_dir / "Source.pdf"
+                replacement = case_dir / "Replacement.pdf"
+                stable_source = case_dir / "Stable.pdf"
+                make_pdf(source, "Original identity")
+                make_pdf(replacement, "Replacement identity")
+                shutil.copy2(source, stable_source)
+                _path, _source_stat, identity = app.inspect_pdf_input(source)
+
+                def replace_during_destination_creation(src, archive_dir):
+                    archive_dir.mkdir(parents=True, exist_ok=True)
+                    os.replace(replacement, src)
+                    return archive_dir / "archive.pdf"
+
+                app.unique_archive_path = replace_during_destination_creation
+                with self.assertRaises(app.UnsafePdfInputError):
+                    app.apply_original_action(
+                        source,
+                        case_dir / "Originals",
+                        action,
+                        identity,
+                        stable_source,
+                    )
+
+                self.assertTrue(source.exists())
+                self.assertFalse((case_dir / "Originals" / "archive.pdf").exists())
+                app.unique_archive_path = self.original_unique_archive
+
+    def test_staged_output_replacement_during_publication_is_rejected(self) -> None:
+        staged = self.root / ".Report.numbered.test.pdf"
+        attacker = self.root / "Attacker.pdf"
+        make_pdf(staged, "Validated output")
+        make_pdf(attacker, "Unvalidated replacement")
+        _path, _source_stat, identity = app.inspect_pdf_input(staged)
+
+        def replace_before_link(output_dir, stem):
+            os.replace(attacker, staged)
+            return self.original_next_output(output_dir, stem)
+
+        app.next_output_path = replace_before_link
+        with self.assertRaises(app.UnsafePdfInputError):
+            app.publish_staged_output(staged, self.root, "Report", identity)
+
+        self.assertFalse((self.root / "Report_OCR.pdf").exists())
 
     def test_next_output_path_uses_numbered_siblings(self) -> None:
         (self.root / "Report_OCR.pdf").touch()

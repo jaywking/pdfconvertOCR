@@ -16,6 +16,15 @@
   "runtimes": {
     "ghostscript": {
       "sourcePath": "C:\\Program Files\\gs\\gs10.07.0",
+      "version": "10.07.0",
+      "executableRelativePath": "bin\\gswin64c.exe",
+      "executableSha256": "95855fb18d4e3f3ae428a3e15edef2ce6fd3a85c7c40fcb32aad140364305dd8",
+      "licenseRelativePath": "doc\\COPYING",
+      "sourceArchiveName": "ghostscript-10.07.0.tar.xz",
+      "sourceUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz",
+      "sourceChecksumsUrl": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/SHA512SUMS",
+      "sourceSha256": "ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1",
+      "sourceSha512": "1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9",
       "treeSha256": "446dbeee4193b98c5e3d10b61bfc7700a0a60f4615ce3205eaa315c929a7f0f0"
     },
     "tesseract": {

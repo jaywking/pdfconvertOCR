@@ -141,7 +141,17 @@ When a user selects a PDF and chooses `Convert to OCR (v6.2)`, Explorer runs:
 `pdf_automation_v6.2.py` checks command-line arguments in `main()`:
 
 - If one or more arguments end in `.pdf`, it treats them as selected files.
+- It preserves the lexical selected pathname instead of resolving it through a
+  link. The shared processing boundary rejects symbolic links, junctions,
+  redirecting reparse points, multiply linked files, and NTFS alternate data
+  streams.
 - Each valid file is passed to `process_single()`.
+- Processing uses a private snapshot of the verified source identity and
+  revalidates that identity before output publication and before the source is
+  kept, copied, or moved.
+- Resource admission limits for input size, page complexity, aggregate batch
+  work, retained diagnostics, and whole-operation duration remain planned.
+  Existing child-process timeouts do not bound every in-process parser step.
 - `process_single()` writes the OCR output next to the original as `<name>_OCR.pdf`.
 - The output PDF's Modified Date is set to match the source PDF after OCR and page numbering complete. The Archival PDF/A preset intentionally omits page numbers so the OCRmyPDF-generated archival output is not modified afterward.
 - The original file is moved into an `Originals` folder next to the selected PDF.
@@ -224,5 +234,8 @@ After importing a removal file, restart Explorer or sign out and back in if the 
 - If bootstrap rejects an existing source environment, run `bootstrap.ps1 -VerifyOnly` to identify the mismatch. Use `bootstrap.ps1 -Recreate` only when the approved source Python is intact and replacement is intended.
 - If setup or build reports an integrity, tree-digest, reparse-point, or signer error, do not bypass it. Restore the reviewed payload or obtain a fresh trusted installer.
 - If another `ocrmypdf.exe` exists on PATH but conversion reports OCRmyPDF missing, install it through `bootstrap.ps1` or packaged setup. Arbitrary PATH and other-user copies are intentionally ignored.
+- If a selected PDF is rejected as linked, redirected, or changed, use the
+  original ordinary file or copy the completed PDF to a normal local filename.
+  Link-backed inputs are intentionally not followed.
 - If OCRmyPDF reports `Could not find program 'pngquant' on the PATH` from a source checkout, run `choco install pngquant -y` from an elevated PowerShell window.
 - If paths contain spaces, keep every `%L`, `%1`, script path, and PDF path wrapped in quotes.

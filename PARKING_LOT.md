@@ -13,8 +13,8 @@ expand the product into a PDF viewer or editor.
    an explicitly configured watch folder.
 4. **Specialized output — completed 2026-07-17:** PDF/A archival mode and a
    small-file mode.
-5. **Security hardening follow-up:** reject link-backed source PDFs and add
-   evidence-based resource limits for unusually large or hostile documents.
+5. **Security hardening follow-up:** link-backed source protection completed
+   2026-10-05; evidence-based resource limits remain planned.
 
 ## 1. Safety and Reliability
 
@@ -65,12 +65,17 @@ cleaning or downsampling.
 
 ## 5. Security Hardening Follow-up
 
-These low-priority findings remain deferred; they are not implemented by the
-current trusted-runtime and installer-integrity changes.
+The 2026-10-05 security review reported four validated findings. The two
+priority-2 findings covering trusted executable discovery and installer/build
+input integrity are complete, as is the link-backed-input priority-3 finding.
+The resource-exhaustion priority-3 finding is the only remaining validated
+item; no other scan finding requires an implementation change. It remains
+deferred pending representative-document measurements and an explicit limits
+policy.
 
 | Status | Idea | Notes |
 | --- | --- | --- |
-| Planned | Reject link-backed input PDFs and retain stable file identity through publication and original-file handling. | Cover explicit selection and batch discovery for symlinks, junctions/reparse points, hard-link policy, and source replacement races. |
+| Done | Reject link-backed input PDFs and retain stable file identity through publication and original-file handling. | Explicit selection and batch mode reject symbolic links, junctions/redirecting reparse points, hard links, and NTFS alternate data streams. Processing uses a private verified snapshot and revalidates source identity before publication and original handling. |
 | Planned | Bound resource use for hostile or unexpectedly large PDFs. | Choose limits from representative documents before enforcing input bytes, page count/dimensions, batch count, free space, captured diagnostics, whole-operation duration, and subprocess-tree termination. |
 
 ## Review Rule

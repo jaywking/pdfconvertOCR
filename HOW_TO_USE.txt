@@ -20,6 +20,12 @@ What happens:
   after the output has been verified.
 - Existing `*_OCR.pdf` files are never overwritten. A new output uses `(1)`,
   `(2)`, and so on when needed.
+- Link-backed PDFs are not followed. Use the original ordinary PDF, not a
+  shortcut, symbolic link, junction, hard link, or NTFS alternate data stream.
+  A PDF that changes during conversion is stopped before further file actions.
+- Resource limits for unusually large or hostile PDFs are still planned. Until
+  those limits are implemented, process unexpected documents individually and
+  avoid unattended oversized batches.
 
 Quality presets:
 

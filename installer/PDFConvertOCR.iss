@@ -62,6 +62,7 @@ Source: "..\trusted-artifacts.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\trusted_artifacts.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\setup_installed_app.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\RIGHT_CLICK_CONTEXT_MENU.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\HOW_TO_USE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "vendor\python\*"; DestDir: "{app}\vendor\python"; Flags: ignoreversion recursesubdirs createallsubdirs

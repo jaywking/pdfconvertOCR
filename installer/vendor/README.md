@@ -33,4 +33,9 @@ Compile from the current staging tree with
 payload verification. An integrity failure must be investigated. Never replace
 a committed digest solely to make an unexpected local file pass.
 
-Review third-party licenses before distributing a public installer, especially Ghostscript's AGPL/commercial licensing.
+The staged Ghostscript runtime must match the exact version, executable hash,
+license path, corresponding-source URL, and source archive checksums recorded
+in `trusted-artifacts.json`. The generated `THIRD_PARTY_NOTICES.txt` carries
+the same source directions into the installed application. Each public release
+that contains Ghostscript must also provide the recorded source archive as a
+release asset.

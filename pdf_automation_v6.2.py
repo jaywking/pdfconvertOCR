@@ -25,6 +25,7 @@ import pymupdf as fitz
 # ---------- Configuration ----------
 GS_TIMEOUT_SECS = 600
 OCR_TIMEOUT_SECS = 600
+IO_REPARSE_TAG_NAME_SURROGATE = 0x20000000
 
 # Page numbering settings
 PAGE_NUMBER_FONT = "helv"  # Helvetica
@@ -81,6 +82,19 @@ class RuntimeTools:
     pngquant: str
 
 
+@dataclass(frozen=True)
+class PdfSourceIdentity:
+    device: int
+    inode: int
+    size: int
+    modified_ns: int
+    link_count: int
+
+
+class UnsafePdfInputError(ValueError):
+    """Raised when a PDF input cannot be tied to one stable ordinary file."""
+
+
 @dataclass
 class ProcessResult:
     file: str
@@ -117,6 +131,7 @@ def build_config() -> AppConfig:
 
 def ensure_runtime_dirs(config: AppConfig) -> None:
     """Create folders used by batch mode and logging."""
+    assert_no_redirecting_reparse_path(config.base_dir)
     for d in (config.processed_dir, config.complete_dir, config.log_dir):
         d.mkdir(parents=True, exist_ok=True)
 
@@ -215,6 +230,151 @@ def path_contains_reparse_point(path: Path) -> bool:
         if attributes & reparse_flag:
             return True
     return False
+
+
+def lexical_absolute_path(path: Path) -> Path:
+    """Return an absolute path without resolving links or junctions."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def assert_no_redirecting_reparse_path(path: Path) -> None:
+    """Reject symlinks, junctions, and redirecting Windows reparse points."""
+    absolute = lexical_absolute_path(path)
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    for component in (absolute, *absolute.parents):
+        try:
+            component_stat = component.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise UnsafePdfInputError(
+                f"Could not inspect PDF path component '{component}': {exc}"
+            ) from exc
+
+        if stat.S_ISLNK(component_stat.st_mode):
+            raise UnsafePdfInputError(
+                f"PDF input path contains a symbolic link: {component}"
+            )
+
+        attributes = getattr(component_stat, "st_file_attributes", 0)
+        if not attributes & reparse_flag:
+            continue
+
+        reparse_tag = getattr(component_stat, "st_reparse_tag", 0)
+        is_name_surrogate = not reparse_tag or bool(
+            reparse_tag & IO_REPARSE_TAG_NAME_SURROGATE
+        )
+        if is_name_surrogate:
+            raise UnsafePdfInputError(
+                f"PDF input path contains a redirecting reparse point: {component}"
+            )
+
+
+def pdf_source_identity(
+    source_path: Path,
+    source_stat: os.stat_result,
+) -> PdfSourceIdentity:
+    """Build a stable identity for one ordinary, singly linked PDF file."""
+    if not stat.S_ISREG(source_stat.st_mode):
+        raise UnsafePdfInputError(f"PDF input is not a regular file: {source_path}")
+    if source_stat.st_nlink != 1:
+        raise UnsafePdfInputError(
+            f"PDF input must have exactly one hard link; found {source_stat.st_nlink}: "
+            f"{source_path}"
+        )
+    if not source_stat.st_ino:
+        raise UnsafePdfInputError(
+            f"The filesystem did not provide a stable file identity for: {source_path}"
+        )
+    return PdfSourceIdentity(
+        device=source_stat.st_dev,
+        inode=source_stat.st_ino,
+        size=source_stat.st_size,
+        modified_ns=source_stat.st_mtime_ns,
+        link_count=source_stat.st_nlink,
+    )
+
+
+def inspect_pdf_input(
+    source_path: Path,
+) -> tuple[Path, os.stat_result, PdfSourceIdentity]:
+    """Validate a PDF directory entry without following a link-backed leaf."""
+    source_path = lexical_absolute_path(source_path)
+    if source_path.suffix.lower() != ".pdf":
+        raise UnsafePdfInputError(f"Not a PDF file: {source_path}")
+    if os.name == "nt":
+        _drive, path_without_drive = os.path.splitdrive(str(source_path))
+        if ":" in path_without_drive:
+            raise UnsafePdfInputError(
+                f"NTFS alternate data stream paths are not supported: {source_path}"
+            )
+
+    assert_no_redirecting_reparse_path(source_path)
+    try:
+        source_stat = source_path.lstat()
+    except FileNotFoundError as exc:
+        raise UnsafePdfInputError(f"PDF input was not found: {source_path}") from exc
+    except OSError as exc:
+        raise UnsafePdfInputError(
+            f"Could not inspect PDF input '{source_path}': {exc}"
+        ) from exc
+    return source_path, source_stat, pdf_source_identity(source_path, source_stat)
+
+
+def assert_pdf_source_unchanged(
+    source_path: Path,
+    expected: PdfSourceIdentity,
+    phase: str,
+) -> None:
+    """Fail when the selected PDF entry changes during processing."""
+    _path, _source_stat, current = inspect_pdf_input(source_path)
+    if current != expected:
+        raise UnsafePdfInputError(
+            f"PDF input changed before {phase}; output was not allowed to continue: "
+            f"{source_path}"
+        )
+
+
+def stat_matches_pdf_identity(
+    source_stat: os.stat_result,
+    expected: PdfSourceIdentity,
+) -> bool:
+    """Compare stable file/content fields while allowing link-count transitions."""
+    return (
+        source_stat.st_dev == expected.device
+        and source_stat.st_ino == expected.inode
+        and source_stat.st_size == expected.size
+        and source_stat.st_mtime_ns == expected.modified_ns
+    )
+
+
+def copy_pdf_source_snapshot(
+    source_path: Path,
+    snapshot_path: Path,
+    expected: PdfSourceIdentity,
+) -> None:
+    """Copy from one verified open file into private processing storage."""
+    try:
+        with source_path.open("rb") as source_stream:
+            opened = pdf_source_identity(source_path, os.fstat(source_stream.fileno()))
+            if opened != expected:
+                raise UnsafePdfInputError(
+                    f"PDF input changed while it was being opened: {source_path}"
+                )
+            with snapshot_path.open("xb") as snapshot_stream:
+                shutil.copyfileobj(source_stream, snapshot_stream)
+            after_copy = pdf_source_identity(
+                source_path, os.fstat(source_stream.fileno())
+            )
+            if after_copy != expected:
+                raise UnsafePdfInputError(
+                    f"PDF input changed while it was being copied: {source_path}"
+                )
+        assert_pdf_source_unchanged(source_path, expected, "processing")
+    except Exception:
+        if snapshot_path.exists():
+            snapshot_path.unlink()
+        raise
 
 
 def find_trusted_ocrmypdf(config: AppConfig) -> str:
@@ -563,17 +723,45 @@ def unique_archive_path(src: Path, archive_dir: Path) -> Path:
     return archive_dir / f"{safe_filename(src.stem)}_{timestamp}_{unique}{src.suffix}"
 
 
-def apply_original_action(src: Path, archive_dir: Path, action: str) -> str:
+def apply_original_action(
+    src: Path,
+    archive_dir: Path,
+    action: str,
+    expected_identity: PdfSourceIdentity,
+    stable_source: Path,
+) -> str:
     """Apply the requested source-file policy after output publication."""
     if action == "keep":
+        assert_pdf_source_unchanged(src, expected_identity, "the original-file action")
         return "kept in place"
 
     dest = unique_archive_path(src, archive_dir)
+    assert_no_redirecting_reparse_path(archive_dir)
     if action == "copy":
-        shutil.copy2(src, dest)
+        assert_pdf_source_unchanged(src, expected_identity, "the original-file copy")
+        shutil.copy2(stable_source, dest)
+        try:
+            assert_pdf_source_unchanged(
+                src, expected_identity, "completion of the original-file copy"
+            )
+        except Exception:
+            if dest.exists():
+                dest.unlink()
+            raise
         return f"copied to {dest}"
     if action == "move":
+        assert_pdf_source_unchanged(src, expected_identity, "the original-file move")
         shutil.move(src, dest)
+        try:
+            _dest_path, _dest_stat, moved_identity = inspect_pdf_input(dest)
+            if moved_identity != expected_identity:
+                raise UnsafePdfInputError(
+                    f"PDF input changed during the original-file move: {src}"
+                )
+        except Exception:
+            if dest.exists() and not src.exists():
+                shutil.move(dest, src)
+            raise
         return f"moved to {dest}"
     raise ValueError(f"Unsupported original action: {action}")
 
@@ -594,18 +782,47 @@ def next_output_path(output_dir: Path, stem: str) -> Path:
     return candidate
 
 
-def publish_staged_output(staged_path: Path, output_dir: Path, stem: str) -> Path:
+def publish_staged_output(
+    staged_path: Path,
+    output_dir: Path,
+    stem: str,
+    expected_identity: PdfSourceIdentity,
+) -> Path:
     """Publish a staged file without replacing an existing output."""
+    assert_pdf_source_unchanged(
+        staged_path, expected_identity, "the staged-output publication"
+    )
     while True:
         candidate = next_output_path(output_dir, stem)
         try:
             # Hard-link creation is atomic and refuses an existing destination.
             # Both paths are in output_dir, so they are guaranteed to share a volume.
             os.link(staged_path, candidate)
-            staged_path.unlink()
-            return candidate
         except FileExistsError:
             logging.info("Output collision for %s; choosing another name.", candidate.name)
+            continue
+
+        staged_stat = staged_path.lstat()
+        candidate_stat = candidate.lstat()
+        if not (
+            stat_matches_pdf_identity(staged_stat, expected_identity)
+            and stat_matches_pdf_identity(candidate_stat, expected_identity)
+            and os.path.samestat(staged_stat, candidate_stat)
+        ):
+            if os.path.samestat(staged_stat, candidate_stat):
+                candidate.unlink()
+            raise UnsafePdfInputError(
+                f"Staged PDF changed during output publication: {staged_path}"
+            )
+
+        staged_path.unlink()
+        _candidate_path, _candidate_stat, final_identity = inspect_pdf_input(candidate)
+        if final_identity != expected_identity:
+            candidate.unlink()
+            raise UnsafePdfInputError(
+                f"Published PDF identity did not match the validated output: {candidate}"
+            )
+        return candidate
 
 
 def page_is_nonblank(page: fitz.Page) -> bool:
@@ -662,19 +879,19 @@ def _process_one_pdf(
     source_path: Path,
     output_dir: Path,
     archive_dir: Path,
-    temp_dir: Path,
+    _temp_dir: Path,
     tools: RuntimeTools,
     original_action: str = "move",
     conversion_options: ConversionOptions | None = None,
 ) -> ProcessResult:
     """Create a verified OCR output, then apply the requested source-file action."""
+    source_path = lexical_absolute_path(source_path)
     start_time = time.monotonic()
     success = False
     error: str | None = None
     pages: int | None = None
     unlocked = False
-    source_stat = source_path.stat()
-    source_bytes = source_stat.st_size
+    source_bytes: int | None = None
     output_path: Path | None = None
     output_bytes: int | None = None
     verified = False
@@ -682,17 +899,51 @@ def _process_one_pdf(
     conversion_options = conversion_options or ConversionOptions(QUALITY_PRESETS["standard"], ("eng",))
     page_numbered = False
 
+    try:
+        source_path, source_stat, source_identity = inspect_pdf_input(source_path)
+        source_bytes = source_stat.st_size
+    except Exception as exc:
+        error = str(exc)
+        logging.error("Rejected PDF input '%s': %s", source_path, exc)
+        duration = time.monotonic() - start_time
+        logging.info(
+            "Summary [FAIL] %s | pages=? | unlocked=no | verified=no | time=%.1fs",
+            source_path.name,
+            duration,
+        )
+        return ProcessResult(
+            file=source_path.name,
+            status="failed",
+            pages=None,
+            duration_s=duration,
+            unlocked=False,
+            original_action=original_action,
+            quality_preset=conversion_options.preset.key,
+            languages=conversion_options.languages,
+            archival_output=conversion_options.preset.archival,
+            error=error,
+        )
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=temp_dir) as tmp_dir:
+    # Source-controlled folders may be shared or attacker-writable. Keep the
+    # stable input snapshot and unlock intermediates in the invoking user's
+    # private OS temporary directory rather than beside the selected PDF.
+    with tempfile.TemporaryDirectory(prefix="pdfconvertocr-") as tmp_dir:
         stem = safe_filename(source_path.stem)
+        source_snapshot = Path(tmp_dir) / f"{stem}_source.pdf"
         unlocked_pdf = Path(tmp_dir) / f"{stem}_unlocked.pdf"
         ocr_staged_pdf = staging_pdf_path(output_dir, stem, "ocr")
         numbered_staged_pdf = staging_pdf_path(output_dir, stem, "numbered")
 
-        work_file = source_path
+        work_file = source_snapshot
         try:
-            if is_pdf_locked(source_path):
-                unlock_pdf(str(source_path), str(unlocked_pdf), tools)
+            copy_pdf_source_snapshot(source_path, source_snapshot, source_identity)
+            os.utime(
+                source_snapshot,
+                ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns),
+            )
+            if is_pdf_locked(source_snapshot):
+                unlock_pdf(str(source_snapshot), str(unlocked_pdf), tools)
                 work_file = unlocked_pdf
                 unlocked = True
             else:
@@ -720,12 +971,28 @@ def _process_one_pdf(
                         preserve_modified_time(staged_final_pdf, source_stat)
                         with fitz.open(work_file) as doc:
                             pages = len(doc)
+                        _staged_path, _staged_stat, staged_identity = inspect_pdf_input(
+                            staged_final_pdf
+                        )
                         final_ok, final_error = validate_final_output(staged_final_pdf, pages, source_stat)
                         if not final_ok:
                             error = final_error or "Final output validation failed"
                         else:
+                            assert_pdf_source_unchanged(
+                                staged_final_pdf,
+                                staged_identity,
+                                "output publication",
+                            )
+                            assert_pdf_source_unchanged(
+                                source_path, source_identity, "output publication"
+                            )
                             verified = True
-                            output_path = publish_staged_output(staged_final_pdf, output_dir, stem)
+                            output_path = publish_staged_output(
+                                staged_final_pdf,
+                                output_dir,
+                                stem,
+                                staged_identity,
+                            )
                             output_bytes = output_path.stat().st_size
                             logging.info(
                                 "Verified output published: %s | text_pages=%s | bytes=%s",
@@ -734,7 +1001,13 @@ def _process_one_pdf(
                                 output_bytes,
                             )
                             try:
-                                original_result = apply_original_action(source_path, archive_dir, original_action)
+                                original_result = apply_original_action(
+                                    source_path,
+                                    archive_dir,
+                                    original_action,
+                                    source_identity,
+                                    source_snapshot,
+                                )
                                 logging.info("Original '%s' %s", source_path.name, original_result)
                                 success = True
                             except Exception as action_exc:
@@ -847,14 +1120,26 @@ def process_batch(
     conversion_options: ConversionOptions,
 ) -> None:
     """Process all PDFs inside SOURCE_DIR."""
+    try:
+        assert_no_redirecting_reparse_path(config.source_dir)
+    except UnsafePdfInputError as exc:
+        logging.error("Unsafe batch source directory: %s", exc)
+        return
     if not config.source_dir.is_dir():
         logging.error(f"Source directory not found: {config.source_dir!s}")
         return
 
-    pdfs = list(config.source_dir.glob("*.pdf"))
+    candidates = list(config.source_dir.glob("*.pdf"))
+    pdfs: list[Path] = []
+    for candidate in candidates:
+        try:
+            safe_path, _source_stat, _identity = inspect_pdf_input(candidate)
+            pdfs.append(safe_path)
+        except UnsafePdfInputError as exc:
+            logging.warning("Skipping unsafe batch PDF '%s': %s", candidate, exc)
 
     if not pdfs:
-        logging.info("No PDFs found - nothing to do.")
+        logging.info("No safe PDFs found - nothing to do.")
         return
 
     logging.info(f"Found {len(pdfs)} PDF(s): {[p.name for p in pdfs]}")
@@ -921,8 +1206,12 @@ def main() -> None:
     options = parser.parse_args()
 
     config = build_config()
-    ensure_runtime_dirs(config)
-    configure_logging(config)
+    try:
+        ensure_runtime_dirs(config)
+        configure_logging(config)
+    except UnsafePdfInputError as exc:
+        print(f"Unsafe runtime directory: {exc}", file=sys.stderr)
+        return
 
     logging.info("🚀 PDF Automation start (v6)")
 
@@ -949,11 +1238,15 @@ def main() -> None:
         for p in pdf_args:
             if p.suffix.lower() != ".pdf":
                 logging.error("Not a PDF file: %s", p)
-            elif p.is_file():
-                logging.info(f"Single-file mode on: {p!s}")
-                process_single(p.resolve(), tools, options.original_action, conversion_options)
             else:
-                logging.error(f"File not found: {p!s}")
+                selected_path = lexical_absolute_path(p)
+                logging.info(f"Single-file mode on: {selected_path!s}")
+                process_single(
+                    selected_path,
+                    tools,
+                    options.original_action,
+                    conversion_options,
+                )
     else:
         # No args → legacy batch mode
         process_batch(config, tools, options.original_action, conversion_options)

@@ -1,5 +1,7 @@
 # PDF Automation (Unlock + OCR) — v6.2
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A Windows-friendly tool that unlocks restricted PDFs, runs OCR with size-aware compression, adds page numbers, and preserves useful file sorting dates. It supports both batch processing and a right-click Explorer action.
 
 ## What it does
@@ -107,6 +109,22 @@ python .\pdf_automation_v6.2.py --original-action copy "C:\Docs\Report.pdf"
 
 Valid values for `--original-action` are `move`, `copy`, and `keep`.
 
+For source safety, the selected path must identify one ordinary PDF with a
+single filesystem link. Symbolic links, directory junctions, redirecting
+Windows reparse points, NTFS alternate data streams, and multiply linked source
+files are rejected before parsing. Processing uses a private snapshot copied
+from the verified file identity, then checks the original identity again before
+publishing output and before applying the original-file action. If the source
+is replaced or modified during conversion, publication or original handling is
+stopped as applicable.
+
+Security review status as of 2026-10-05: the trusted-executable discovery,
+installer/build-input integrity, and link-backed-input findings are remediated.
+The only remaining validated finding is low-priority resource-exhaustion
+hardening for unusually large or hostile PDFs and batches; the evidence-based
+limits are tracked in `PARKING_LOT.md`. No other validated scan finding requires
+an implementation change.
+
 ## OCR Quality and Language Options
 
 When you start a conversion from File Explorer, PDFConvertOCR shows a small
@@ -141,6 +159,8 @@ non-interactive and defaults to Standard with English unless options are given.
 
 ## Core Files
 - `app_metadata.json`: The shared source of truth for app version, Explorer menu label, registry verb, runner script, and main script names.
+- `LICENSE`: GNU Affero General Public License version 3, which covers the
+  original PDFConvertOCR source code.
 - `pdf_automation_v6.2.py`: The main Python script containing all the logic.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
@@ -180,7 +200,12 @@ The build script prepares an offline vendor payload from the local build machine
 
 ```text
 dist\PDFConvertOCR-Setup-v6.2.1.exe
+dist\ghostscript-10.07.0.tar.xz
 ```
+
+Publish both files in the GitHub release. The source sidecar is downloaded from
+the pinned Artifex URL and must pass the SHA-256 recorded in
+`trusted-artifacts.json` before it is staged in `dist`.
 
 `app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.
 
@@ -226,7 +251,35 @@ payload includes Tcl/Tk because the Explorer conversion-options dialog uses
   system locations in a source checkout. Packaged installs prepend their
   verified bundled directories to `PATH`.
 
-Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
+## License
+
+Copyright (C) 2025-2026 Jay King.
+
+PDFConvertOCR's original source code is licensed under the
+[GNU Affero General Public License version 3](LICENSE), with no later-version
+option (`AGPL-3.0-only`). You may use, study, modify, and redistribute it under
+that license's terms, including its source-availability requirements.
+
+Third-party components retain their own licenses. Release installers bundle
+Python, PyMuPDF, OCRmyPDF and its Python dependencies, Ghostscript, Tesseract,
+and pngquant. Review `THIRD_PARTY_NOTICES.txt` in an installed application and
+the bundled component license material before redistribution. PyMuPDF and
+Ghostscript are offered under AGPL or separate commercial licensing; this
+project uses their open-source distributions and does not grant a commercial
+license to them.
+
+The packaged Ghostscript runtime is version 10.07.0. Its AGPL text is installed
+at `vendor\ghostscript\doc\COPYING`. The exact corresponding source archive is
+[`ghostscript-10.07.0.tar.xz`](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10070/ghostscript-10.07.0.tar.xz),
+with SHA-256
+`ddace4e1721f967a55039baff564840225e0baa1d4f5432247ca1ccd1473b7c1`
+and SHA-512
+`1c2a14951223c975a53bd9767c28bd3a6e420c385a5e0d7a60a5ff5b091bc027929c815bf57cddf97611e8d265ece1c219321737f2cabb5646685c6e8cdb85c9`.
+PDFConvertOCR releases that bundle this runtime also publish that source archive
+as a release asset.
+
+Review third-party licenses before distributing the installer, especially
+PyMuPDF and Ghostscript's AGPL/commercial licensing.
 
 ## How it Works
 
@@ -266,6 +319,9 @@ After OCR, PyMuPDF is used to add "Page X of Y" to the bottom center of each pag
 After OCR and page numbering are complete, the script sets the generated `*_OCR.pdf` file's Modified Date to match the source PDF.
 
 ### Temp files and originals
+- The verified source is copied into a private temporary snapshot; OCR and
+  validation read that snapshot rather than repeatedly reopening the selected
+  pathname.
 - Intermediate files live in a temporary directory and are cleaned after each file.
 - Originals are archived with a timestamp and short UUID suffix to prevent name collisions (`<name>_YYYYMMDD_HHMMSS_<id>.pdf`).
 
@@ -275,6 +331,14 @@ After OCR and page numbering are complete, the script sets the generated `*_OCR.
 - **Setup or build reports an integrity, digest, reparse-point, or signer failure**: Stop and obtain a fresh trusted installer or restore the reviewed build input. Do not bypass the check or update `trusted-artifacts.json` until the changed artifact's provenance has been independently verified.
 - **Source bootstrap rejects the Python environment**: Run `bootstrap.ps1 -VerifyOnly` for the exact mismatch. If the approved source runtime is intact but `C:\LocalVenvs\pdfconvertOCR` is stale or damaged, rerun with `-Recreate`.
 - **OCRmyPDF is reported missing even though another copy is on PATH**: PATH copies are intentionally ignored. Run `bootstrap.ps1` for a source checkout or rerun packaged setup so OCRmyPDF is installed in an approved runtime.
+- **The PDF is rejected as linked, redirected, or changed**: Use the original
+  ordinary file rather than a shortcut, symbolic link, junction, hard link, or
+  NTFS alternate data stream. If another program is updating the PDF, wait for
+  it to finish or copy the completed PDF to a normal local filename and retry.
+- **Very large, complex, or unusually numerous PDFs**: Resource ceilings are
+  not yet enforced around every parser and batch operation. Until measured
+  limits are implemented, process unexpected or untrusted documents
+  individually and avoid unattended oversized batches.
 - **`Could not find program 'pngquant' on the PATH`**:
   - Cause: OCRmyPDF needs the external `pngquant.exe` tool when the script uses `--optimize 3`.
   - Fix:

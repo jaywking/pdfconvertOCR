@@ -13,6 +13,8 @@ expand the product into a PDF viewer or editor.
    an explicitly configured watch folder.
 4. **Specialized output — completed 2026-07-17:** PDF/A archival mode and a
    small-file mode.
+5. **Security hardening follow-up:** reject link-backed source PDFs and add
+   evidence-based resource limits for unusually large or hostile documents.
 
 ## 1. Safety and Reliability
 
@@ -60,6 +62,16 @@ cleaning or downsampling.
 | --- | --- | --- |
 | Done | PDF/A archival preset — OCRmyPDF-generated archival output, not independently certified by this app. | [OCRmyPDF](https://github.com/ocrmypdf/OCRmyPDF) |
 | Done | Small-file preset — optimize level 3 with JPEG quality 25. | [Unrud/djpdf](https://github.com/Unrud/djpdf) |
+
+## 5. Security Hardening Follow-up
+
+These low-priority findings remain deferred; they are not implemented by the
+current trusted-runtime and installer-integrity changes.
+
+| Status | Idea | Notes |
+| --- | --- | --- |
+| Planned | Reject link-backed input PDFs and retain stable file identity through publication and original-file handling. | Cover explicit selection and batch discovery for symlinks, junctions/reparse points, hard-link policy, and source replacement races. |
+| Planned | Bound resource use for hostile or unexpectedly large PDFs. | Choose limits from representative documents before enforcing input bytes, page count/dimensions, batch count, free space, captured diagnostics, whole-operation duration, and subprocess-tree termination. |
 
 ## Review Rule
 

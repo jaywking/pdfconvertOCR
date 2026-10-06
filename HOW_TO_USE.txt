@@ -39,3 +39,6 @@ To uninstall:
 
 Open Windows Settings > Apps > Installed apps, find PDFConvertOCR, and choose Uninstall.
 
+If installation or repair reports an integrity or signature verification
+failure, stop and obtain a fresh trusted installer. Do not bypass the check.
+

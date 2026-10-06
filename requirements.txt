@@ -1,2 +1,4 @@
-ocrmypdf==17.10.0
-PyMuPDF==1.28.2
+# Direct application dependencies: ocrmypdf==17.10.0 and PyMuPDF==1.28.2.
+# Installation is always routed through the complete hash-locked dependency set.
+--require-hashes
+-r requirements-lock.txt

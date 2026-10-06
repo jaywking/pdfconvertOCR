@@ -13,6 +13,7 @@ import subprocess
 import logging
 import re
 import os
+import stat
 import tempfile
 import time
 import uuid
@@ -193,6 +194,55 @@ def ensure_executable_dir_on_path(exe_path: str) -> None:
         os.environ["PATH"] = exe_dir + os.pathsep + current_path
         logging.info(f"  ✅ Added dependency folder to PATH for this run: {exe_dir}")
 
+
+def trusted_ocrmypdf_roots(config: AppConfig) -> tuple[Path, ...]:
+    """Return the only Python runtime roots approved to supply OCRmyPDF."""
+    return (
+        config.app_dir / "python",
+        Path(r"C:\LocalVenvs\pdfconvertOCR"),
+    )
+
+
+def path_contains_reparse_point(path: Path) -> bool:
+    """Return True when a Windows path or any existing parent is a link/junction."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    absolute = Path(os.path.abspath(path))
+    for component in (absolute, *absolute.parents):
+        try:
+            attributes = getattr(component.lstat(), "st_file_attributes", 0)
+        except OSError:
+            continue
+        if attributes & reparse_flag:
+            return True
+    return False
+
+
+def find_trusted_ocrmypdf(config: AppConfig) -> str:
+    """Resolve OCRmyPDF only from the two application-owned Python runtimes."""
+    for runtime_root in trusted_ocrmypdf_roots(config):
+        candidate = runtime_root / "Scripts" / "ocrmypdf.exe"
+        if not candidate.is_file():
+            continue
+        if path_contains_reparse_point(runtime_root) or path_contains_reparse_point(candidate):
+            logging.error("  ❌ Rejected linked OCRmyPDF runtime path: %s", candidate)
+            continue
+        try:
+            resolved_root = runtime_root.resolve(strict=True)
+            resolved_candidate = candidate.resolve(strict=True)
+            resolved_candidate.relative_to(resolved_root)
+        except (OSError, ValueError):
+            logging.error("  ❌ Rejected OCRmyPDF outside trusted runtime: %s", candidate)
+            continue
+        if resolved_candidate.is_file():
+            logging.info("  ✅ Found OCRmyPDF in trusted runtime: %s", resolved_candidate)
+            return str(resolved_candidate)
+
+    logging.error(
+        "  ❌ Missing dependency: OCRmyPDF was not found in the packaged runtime "
+        "or C:\\LocalVenvs\\pdfconvertOCR. Run bootstrap.ps1 or repair the packaged installation."
+    )
+    return ""
+
 def check_dependencies(config: AppConfig) -> RuntimeTools | None:
     """Check if required command-line tools are installed."""
     logging.info("🔎 Checking for dependencies...")
@@ -203,11 +253,6 @@ def check_dependencies(config: AppConfig) -> RuntimeTools | None:
         config.app_dir / "vendor" / "ghostscript",
         Path(r"C:\\Program Files\\gs"),
         Path(r"C:\\Program Files (x86)\\gs")
-    ]
-    ocr_paths = [
-        config.app_dir / "python" / "Scripts",
-        Path(r"C:\\Users"), # Search all user profiles
-        Path(r"C:\\Program Files")
     ]
     tesseract_paths = [
         config.app_dir / "vendor" / "tesseract",
@@ -225,18 +270,7 @@ def check_dependencies(config: AppConfig) -> RuntimeTools | None:
     tesseract_exe = find_executable("tesseract.exe", "Tesseract OCR", tesseract_paths, prefer_search_paths=True)
     pngquant_exe = find_executable("pngquant.exe", "pngquant", pngquant_paths, prefer_search_paths=True)
 
-    # Prefer OCRmyPDF from the active Python environment to avoid PATH collisions
-    # (e.g., global/user installs shadowing this project's venv).
-    env_ocr = Path(sys.executable).resolve().parent / "ocrmypdf.exe"
-    env_scripts_ocr = Path(sys.executable).resolve().parent / "Scripts" / "ocrmypdf.exe"
-    if env_ocr.exists():
-        ocrmypdf_exe = str(env_ocr)
-        logging.info(f"  ✅ Found OCRmyPDF in active environment: {ocrmypdf_exe}")
-    elif env_scripts_ocr.exists():
-        ocrmypdf_exe = str(env_scripts_ocr)
-        logging.info(f"  ✅ Found OCRmyPDF in active environment Scripts folder: {ocrmypdf_exe}")
-    else:
-        ocrmypdf_exe = find_executable("ocrmypdf.exe", "OCRmyPDF", ocr_paths)
+    ocrmypdf_exe = find_trusted_ocrmypdf(config)
 
     if not all((ghostscript_exe, ocrmypdf_exe, tesseract_exe, pngquant_exe)):
         logging.error("Please install missing dependencies or add them to your system's PATH.")

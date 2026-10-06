@@ -57,6 +57,9 @@ Source: "..\{#MyMainScript}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\{#MyRunnerScript}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\app_metadata.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\requirements.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\requirements-lock.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\trusted-artifacts.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\trusted_artifacts.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\setup_installed_app.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\RIGHT_CLICK_CONTEXT_MENU.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -77,6 +80,9 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\{#MyCont
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\vendor\python"
 Type: filesandordirs; Name: "{app}\vendor\wheelhouse"
+Type: filesandordirs; Name: "{app}\vendor\ghostscript"
+Type: filesandordirs; Name: "{app}\vendor\tesseract"
+Type: filesandordirs; Name: "{app}\vendor\pngquant"
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import pymupdf as fitz
 
@@ -44,6 +45,59 @@ class SafetyReliabilityTests(unittest.TestCase):
     def fake_ocr(self, source: str, destination: str, _tools, _options) -> tuple[bool, str | None]:
         shutil.copy2(source, destination)
         return True, None
+
+    def test_trusted_ocrmypdf_rejects_path_and_other_user_decoys(self) -> None:
+        app_dir = self.root / "app"
+        decoy = self.root / "other-user" / "ocrmypdf.exe"
+        decoy.parent.mkdir(parents=True)
+        decoy.touch()
+        config = app.AppConfig(app_dir, app_dir, app_dir, app_dir, app_dir, app_dir)
+
+        with mock.patch.object(app.shutil, "which", return_value=str(decoy)), mock.patch.object(
+            app, "trusted_ocrmypdf_roots", return_value=(app_dir / "python",)
+        ):
+            self.assertEqual(app.find_trusted_ocrmypdf(config), "")
+
+    def test_trusted_ocrmypdf_accepts_packaged_runtime(self) -> None:
+        app_dir = self.root / "app"
+        wrapper = app_dir / "python" / "Scripts" / "ocrmypdf.exe"
+        wrapper.parent.mkdir(parents=True)
+        wrapper.touch()
+        config = app.AppConfig(app_dir, app_dir, app_dir, app_dir, app_dir, app_dir)
+
+        self.assertEqual(app.find_trusted_ocrmypdf(config), str(wrapper.resolve()))
+
+    def test_trusted_ocrmypdf_rejects_linked_runtime_root(self) -> None:
+        app_dir = self.root / "app"
+        runtime_root = app_dir / "python"
+        wrapper = runtime_root / "Scripts" / "ocrmypdf.exe"
+        wrapper.parent.mkdir(parents=True)
+        wrapper.touch()
+        config = app.AppConfig(app_dir, app_dir, app_dir, app_dir, app_dir, app_dir)
+
+        with mock.patch.object(
+            app, "trusted_ocrmypdf_roots", return_value=(runtime_root,)
+        ), mock.patch.object(
+            app, "path_contains_reparse_point", side_effect=lambda path: path == runtime_root
+        ):
+            self.assertEqual(app.find_trusted_ocrmypdf(config), "")
+
+    def test_trusted_ocrmypdf_rejects_symlink_escape(self) -> None:
+        if not hasattr(Path, "symlink_to"):
+            self.skipTest("symlinks are unavailable")
+        app_dir = self.root / "app"
+        outside = self.root / "outside.exe"
+        outside.touch()
+        wrapper = app_dir / "python" / "Scripts" / "ocrmypdf.exe"
+        wrapper.parent.mkdir(parents=True)
+        try:
+            wrapper.symlink_to(outside)
+        except OSError as exc:
+            self.skipTest(f"symlinks are unavailable: {exc}")
+        config = app.AppConfig(app_dir, app_dir, app_dir, app_dir, app_dir, app_dir)
+
+        with mock.patch.object(app, "trusted_ocrmypdf_roots", return_value=(app_dir / "python",)):
+            self.assertEqual(app.find_trusted_ocrmypdf(config), "")
 
     def process(self, source: Path, action: str = "keep"):
         app.ocr_pdf = self.fake_ocr

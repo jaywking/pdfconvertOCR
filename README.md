@@ -20,7 +20,7 @@ For coworkers and non-technical users, use the packaged Windows installer from G
 2. Double-click the installer.
 3. Right-click a PDF and choose **Convert to OCR (v6.2)**.
 
-The installer is designed to install per-user under `%LOCALAPPDATA%\PDFConvertOCR`, bundle the OCR runtime tools, and create the right-click menu automatically.
+The installer is designed to install per-user under `%LOCALAPPDATA%\PDFConvertOCR`, bundle the OCR runtime tools, and create the right-click menu automatically. Before it executes or installs a bundled runtime, setup verifies the approved payload inventory, SHA-256 tree digests, and Python installer signature. A changed, missing, extra, or reparse-point-backed payload stops installation.
 
 ## How To Use It
 
@@ -35,17 +35,36 @@ The tool creates a searchable `*_OCR.pdf` next to the selected PDF, keeps the so
 
 ## Source Checkout Requirements
 - Windows 10 or 11
-- Python 3.x
+- The exact approved source Python runtime recorded in `trusted-artifacts.json`
+  (currently PSF Python 3.14.4 on this workstation).
 - **Ghostscript**: External executable. Must be installed and accessible via PATH or bundled under `vendor\ghostscript`.
 - **Tesseract OCR**: External executable. OCRmyPDF needs it for OCR work.
 - **pngquant**: External executable. OCRmyPDF needs it when this script uses `--optimize 3`.
-- Python packages from `requirements.txt`.
+- Python packages from the fully transitive, SHA-256-locked `requirements-lock.txt`.
 - Use the project virtual environment (`C:\LocalVenvs\pdfconvertOCR`) when running the script.
 
-Create or repair the source-checkout Python environment:
+Create the source-checkout Python environment, or reinstall its locked packages:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1"
 ```
+
+Verify the approved source runtime and existing project environment without
+installing packages:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1" -VerifyOnly
+```
+
+If verification reports that the existing project environment is not the
+approved one, review the error and recreate it explicitly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Utils\pdfconvertOCR\bootstrap.ps1" -Recreate
+```
+
+Bootstrap does not fall back to `py.exe`, an arbitrary `python.exe`, or an
+unrelated virtual environment. The approved source Python and project runtime
+are recorded in `trusted-artifacts.json`.
 
 Install the external `pngquant` executable globally with Chocolatey if you are not using the packaged installer:
 ```powershell
@@ -126,7 +145,10 @@ non-interactive and defaults to Standard with English unless options are given.
 - `run_single_pdf.bat`: A helper batch script that allows the context menu to reliably call the Python script with file paths that contain spaces.
 - `install_right_click_context.bat`: Double-click installer for the Explorer right-click action.
 - `uninstall_right_click_context.bat`: Double-click remover for the Explorer right-click action.
-- `setup_installed_app.ps1`: Post-install setup and repair script used by the packaged Windows installer.
+- `requirements-lock.txt`: Fully transitive Windows CPython 3.14 dependency lock with a SHA-256 hash for every accepted distribution.
+- `trusted-artifacts.json`: Reviewed versions, source locations, file hashes, tree hashes, and signer requirements for build and packaged runtime inputs.
+- `trusted_artifacts.ps1`: Shared fail-closed verification functions for file hashes, directory inventories, reparse points, and Authenticode signers.
+- `setup_installed_app.ps1`: Post-install setup and repair script that verifies all packaged payloads before replacing the local Python runtime and installing the locked wheels.
 - `HOW_TO_USE.txt`: Short coworker-facing usage instructions installed with the packaged app.
 - `installer/`: Inno Setup build files for creating `PDFConvertOCR-Setup-v6.2.1.exe`.
 - `registry/add_OCR_context_v6.2.reg`: The registry file for creating the right-click context menu item.
@@ -140,6 +162,20 @@ Install Inno Setup 6 on the build machine, then run:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1
 ```
 
+To verify the currently approved build tools and staged vendor payload without
+refreshing the payload or compiling an installer:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1 -VerifyOnly
+```
+
+To compile from an already staged payload, use `-SkipVendorRefresh`. This does
+not skip integrity checks:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build_installer.ps1 -SkipVendorRefresh
+```
+
 The build script prepares an offline vendor payload from the local build machine and writes:
 
 ```text
@@ -148,14 +184,47 @@ dist\PDFConvertOCR-Setup-v6.2.1.exe
 
 `app_metadata.json` controls the app version, installer output name prefix, Explorer menu label, registry verb, and script filenames used by the source installer scripts and packaged installer build.
 
-`requirements.txt` pins the top-level Python packages to the versions currently bundled in the offline wheelhouse. If you intentionally upgrade OCRmyPDF or PyMuPDF, rebuild the installer vendor payload so `setup_installed_app.ps1` can repair packaged installs from matching wheels.
+`requirements.txt` routes ordinary pip usage through the secure lock and records
+the two direct application dependencies in comments. `requirements-lock.txt`
+pins and hashes the complete Windows CPython 3.14
+dependency set. `trusted-artifacts.json` separately pins the Python installer,
+wheelhouse, Ghostscript, Tesseract, and pngquant payloads. The build verifies
+those inputs and the signed Python/Inno Setup executables before execution or
+packaging. `-SkipVendorRefresh` reuses the local staging tree only after the
+same complete verification; `-VerifyOnly` performs the checks without compiling.
 
-The packaged runtime defaults to Python 3.14.7. The build script derives the
+When intentionally changing a dependency, Python version, native runtime, or
+build tool, independently verify its upstream provenance, update
+`requirements-lock.txt` and/or `trusted-artifacts.json` as applicable, rebuild
+the vendor payload, and review the resulting manifest and lock-file diff before
+distributing a new installer. Do not update a digest merely to make an
+unexpected local payload pass.
+
+The packaged runtime is pinned to Python 3.14.7. The build script derives the
 CPython feature and ABI wheel target from that version, and packaged upgrades
-replace an older bundled Python runtime before installing the offline wheels.
-The offline Python payload includes Tcl/Tk because the Explorer conversion
-options dialog uses `tkinter`; setup verifies that component and repairs it when
-necessary.
+delete the prior staged vendor trees before copying the new payload. Installed
+setup verifies all bundled payloads before execution, removes the prior local
+Python runtime, installs the approved runtime, installs only the complete
+hash-locked offline wheel set, and verifies required imports. The offline Python
+payload includes Tcl/Tk because the Explorer conversion-options dialog uses
+`tkinter`.
+
+### Integrity and executable trust boundaries
+
+- Source bootstrap accepts only the approved signed CPython installation and
+  project environment recorded in `trusted-artifacts.json`.
+- Installer creation verifies the source Python components, isolated build
+  `pip`, Inno Setup signer, downloaded Python installer, and complete vendor
+  directory inventories before compilation.
+- Packaged setup performs the same vendor inventory checks before running the
+  Python installer or importing a package. Verification failures stop setup;
+  there is no network or unpinned-package fallback.
+- Runtime OCR accepts `ocrmypdf.exe` only from the packaged
+  `python\Scripts` directory or `C:\LocalVenvs\pdfconvertOCR\Scripts` and
+  rejects a trusted runtime path containing a symlink or Windows reparse point.
+- Ghostscript, Tesseract, and pngquant may still come from the documented
+  system locations in a source checkout. Packaged installs prepend their
+  verified bundled directories to `PATH`.
 
 Review third-party licenses before distributing the installer, especially Ghostscript's AGPL/commercial licensing.
 
@@ -182,8 +251,12 @@ ocrmypdf.exe -l eng --skip-text --optimize 3 --jpeg-quality 40 --output-type pdf
 
 ### Dependency Resolution
 - The script checks for Ghostscript, Tesseract, pngquant, and OCRmyPDF before processing.
-- The script prefers `ocrmypdf.exe` from the **active Python environment** first (for example `C:\LocalVenvs\pdfconvertOCR\Scripts\ocrmypdf.exe` or an installed `python\Scripts\ocrmypdf.exe`) before searching system PATH.
-- This prevents global/user Python package conflicts from breaking OCR when the project venv is healthy.
+- The script accepts `ocrmypdf.exe` only from the packaged `python\Scripts`
+  directory or `C:\LocalVenvs\pdfconvertOCR\Scripts`.
+- PATH entries, other user profiles, unrelated environments, and recursive
+  executable searches are not accepted for OCRmyPDF.
+- A symlink, junction, or other Windows reparse point in either approved
+  OCRmyPDF runtime path is rejected.
 - Packaged installs prepend bundled runtime folders to PATH so OCRmyPDF can launch Ghostscript, Tesseract, and pngquant.
 
 ### Page Numbering
@@ -198,19 +271,19 @@ After OCR and page numbering are complete, the script sets the generated `*_OCR.
 
 ## Troubleshooting
 - **Script fails silently**: The most common cause is a missing dependency. Ensure both Ghostscript and Tesseract are installed and their paths are correctly configured in your system's environment variables.
-- **Packaged right-click install fails with `ModuleNotFoundError: No module named 'fitz'`**: Run `setup_installed_app.ps1` from `%LOCALAPPDATA%\PDFConvertOCR`. It repairs the bundled Python runtime, including bootstrapping `pip` if needed, and reinstalls packages from the offline wheelhouse.
+- **Packaged right-click install fails with `ModuleNotFoundError: No module named 'fitz'`**: Rerun the installer or run `setup_installed_app.ps1` from `%LOCALAPPDATA%\PDFConvertOCR`. It verifies every bundled payload, replaces the Python runtime from the approved offline installer, and installs the complete hash-locked wheel set.
+- **Setup or build reports an integrity, digest, reparse-point, or signer failure**: Stop and obtain a fresh trusted installer or restore the reviewed build input. Do not bypass the check or update `trusted-artifacts.json` until the changed artifact's provenance has been independently verified.
+- **Source bootstrap rejects the Python environment**: Run `bootstrap.ps1 -VerifyOnly` for the exact mismatch. If the approved source runtime is intact but `C:\LocalVenvs\pdfconvertOCR` is stale or damaged, rerun with `-Recreate`.
+- **OCRmyPDF is reported missing even though another copy is on PATH**: PATH copies are intentionally ignored. Run `bootstrap.ps1` for a source checkout or rerun packaged setup so OCRmyPDF is installed in an approved runtime.
 - **`Could not find program 'pngquant' on the PATH`**:
   - Cause: OCRmyPDF needs the external `pngquant.exe` tool when the script uses `--optimize 3`.
   - Fix:
   ```powershell
   choco install pngquant -y
   ```
-- **`SystemError` about `pydantic-core` incompatibility**:
-  - Cause: A global/user `ocrmypdf` install is loading mismatched `pydantic` and `pydantic-core` versions.
-  - Fix: Run using the project venv (the script now prefers this automatically), or repair global packages:
-  ```bat
-  python -m pip install --upgrade --force-reinstall "pydantic==2.13.4" "pydantic-core==2.46.4"
-  ```
+- **`SystemError` about `pydantic-core` incompatibility**: Repair the approved
+  runtime with `bootstrap.ps1 -Recreate` for a source checkout or rerun packaged
+  setup. Global or user-level Python packages are not supported runtime inputs.
 - **ChatGPT says "No text can be extracted"**: For a stubborn file, you can force re-OCR on every page with this manual command, though it may increase file size:
   ```bat
   ocrmypdf --force-ocr --output-type pdf "input.pdf" "fixed.pdf"

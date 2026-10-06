@@ -15,9 +15,12 @@ This project implements the Explorer right-click action with these pieces:
 - `install_right_click_context.ps1` bootstraps the project and writes the user-level registry keys.
 - `uninstall_right_click_context.bat` removes the Explorer menu item.
 - `run_single_pdf.bat` is the command Explorer runs.
-- `bootstrap.ps1` creates or repairs the centralized virtual environment if it is missing.
+- `bootstrap.ps1` creates the centralized virtual environment from the approved signed source Python and reinstalls the complete hash-locked dependency set. It fails closed when an existing environment does not match policy; `-Recreate` is the explicit replacement path.
 - `pdf_automation_v6.2.py` processes the selected PDF when given a PDF path argument.
-- `setup_installed_app.ps1` prepares the bundled Python runtime during packaged installs and can repair missing `pip` or Python packages from the bundled wheelhouse.
+- `requirements-lock.txt` pins and hashes the complete supported Python dependency graph.
+- `trusted-artifacts.json` records approved runtime versions, source locations, SHA-256 values, directory-tree digests, and signer requirements.
+- `trusted_artifacts.ps1` provides the shared artifact, reparse-point, and Authenticode checks.
+- `setup_installed_app.ps1` verifies the bundled manifests and payloads, replaces the packaged Python runtime, and installs the exact offline hash-locked wheel set.
 - `installer/PDFConvertOCR.iss` creates the per-user Windows installer.
 
 ## Packaged installer
@@ -43,6 +46,12 @@ The packaged install bundles runtime dependencies under the install folder:
 - `vendor\tesseract\`: Tesseract runtime and tessdata
 - `vendor\pngquant\`: pngquant executable
 
+On install or upgrade, Inno Setup removes every old staged vendor runtime tree
+before copying the new payload. `setup_installed_app.ps1` then rejects any
+changed, missing, extra, or reparse-point-backed bundled file before it runs the Python
+installer. A repair always replaces the installed local Python runtime from the
+verified offline media and installs only the hash-locked wheel set.
+
 The installed tool is intentionally used from Explorer, not from a standalone app window. After installation, users should:
 
 1. Open the folder containing their PDF.
@@ -63,7 +72,9 @@ install_right_click_context.bat
 That batch file runs `install_right_click_context.ps1` with `-ExecutionPolicy Bypass`. The PowerShell installer:
 
 1. Confirms the expected project files exist.
-2. Runs `bootstrap.ps1` to create or repair `C:\LocalVenvs\pdfconvertOCR`.
+2. Runs `bootstrap.ps1` to create `C:\LocalVenvs\pdfconvertOCR` when needed,
+   verify the approved runtime, and install the locked dependencies. An
+   unapproved existing environment stops setup until it is explicitly recreated.
 3. Creates the Explorer PDF shell verb under the current user's registry hive.
 4. Points that shell verb at this repo's `run_single_pdf.bat`.
 
@@ -74,6 +85,11 @@ HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\ConvertToOCRv6.2
 ```
 
 Using `HKCU` keeps the install scoped to the current Windows user and usually avoids needing an elevated terminal. The source-checkout installer still expects dependencies to be installed globally or available through `bootstrap.ps1`.
+
+`bootstrap.ps1` accepts only the source Python and project-environment identity
+recorded in `trusted-artifacts.json`; it does not fall back to another Python on
+PATH. Use `bootstrap.ps1 -VerifyOnly` for a non-installing check and
+`bootstrap.ps1 -Recreate` only after reviewing a reported mismatch.
 
 ## Manual registry verb
 
@@ -153,6 +169,13 @@ If the project moves, update these hard-coded paths:
 - `registry/add_OCR_context_v6.2.reg`: `C:\\Utils\\pdfconvertOCR\\run_single_pdf.bat`
 - `run_single_pdf.bat`: source-checkout fallback path `C:\LocalVenvs\pdfconvertOCR\Scripts\python.exe`
 - `installer/PDFConvertOCR.iss`: packaged install metadata, output name, registry command, and installed file list
+- `requirements-lock.txt`: complete accepted Python dependency set and hashes
+- `trusted-artifacts.json`: approved Python/build/native runtime identities and vendor tree digests
+
+Treat `requirements-lock.txt` and `trusted-artifacts.json` as reviewed security
+policy, not generated cache files. When a dependency or runtime intentionally
+changes, verify its upstream provenance, rebuild the vendor payload, update only
+the affected lock or manifest entries, and review the diff before release.
 
 If the visible menu label changes, update the registry default value:
 
@@ -197,6 +220,9 @@ After importing a removal file, restart Explorer or sign out and back in if the 
 - If the menu item does not appear, confirm the `.reg` file imported successfully and that it was imported with sufficient permissions.
 - If clicking the menu item opens a terminal and fails, run `run_single_pdf.bat "C:\path\to\file.pdf"` manually to see the error.
 - If the batch file cannot find Python, run `powershell -ExecutionPolicy Bypass -File C:\Utils\pdfconvertOCR\bootstrap.ps1`.
-- If a packaged install cannot find Python packages, for example `ModuleNotFoundError: No module named 'fitz'`, rerun the installer or run `setup_installed_app.ps1` from the install folder. The setup script bootstraps `pip` with `ensurepip` when needed, then reinstalls packages from `vendor\wheelhouse`.
+- If a packaged install cannot find Python packages, for example `ModuleNotFoundError: No module named 'fitz'`, rerun the installer or run `setup_installed_app.ps1` from the install folder. The setup script first rejects any changed, missing, extra, or reparse-point-backed vendor payload, then reinstalls the verified Python runtime and exact offline wheel set.
+- If bootstrap rejects an existing source environment, run `bootstrap.ps1 -VerifyOnly` to identify the mismatch. Use `bootstrap.ps1 -Recreate` only when the approved source Python is intact and replacement is intended.
+- If setup or build reports an integrity, tree-digest, reparse-point, or signer error, do not bypass it. Restore the reviewed payload or obtain a fresh trusted installer.
+- If another `ocrmypdf.exe` exists on PATH but conversion reports OCRmyPDF missing, install it through `bootstrap.ps1` or packaged setup. Arbitrary PATH and other-user copies are intentionally ignored.
 - If OCRmyPDF reports `Could not find program 'pngquant' on the PATH` from a source checkout, run `choco install pngquant -y` from an elevated PowerShell window.
 - If paths contain spaces, keep every `%L`, `%1`, script path, and PDF path wrapped in quotes.

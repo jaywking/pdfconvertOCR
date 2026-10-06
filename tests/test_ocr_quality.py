@@ -66,12 +66,22 @@ class OcrQualityTests(unittest.TestCase):
         setup_script = SETUP_PATH.read_text(encoding="utf-8")
         self.assertIn('"Include_tcltk=1"', setup_script)
         self.assertIn('import tkinter, pymupdf, ocrmypdf', setup_script)
-        self.assertIn('"/repair", "/quiet"', setup_script)
+        self.assertIn("Assert-FileSha256 -Path $PythonInstaller", setup_script)
+        self.assertIn("Remove-Item -LiteralPath $PythonDir -Recurse -Force", setup_script)
+        self.assertIn('(@("/quiet") + $PythonInstallOptions)', setup_script)
 
     def test_installer_propagates_runtime_setup_failures(self):
         installer_script = INSTALLER_PATH.read_text(encoding="utf-8")
         self.assertIn("ResultCode <> 0", installer_script)
         self.assertIn("RaiseException", installer_script)
+
+    def test_installer_removes_all_old_vendor_trees_before_upgrade(self):
+        installer_script = INSTALLER_PATH.read_text(encoding="utf-8")
+        for component in ("python", "wheelhouse", "ghostscript", "tesseract", "pngquant"):
+            self.assertIn(
+                f'Type: filesandordirs; Name: "{{app}}\\vendor\\{component}"',
+                installer_script,
+            )
 
 
 if __name__ == "__main__":

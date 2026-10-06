@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "python": {
+    "version": "3.14.7",
+    "installerName": "python-3.14.7-amd64.exe",
+    "installerUrl": "https://www.python.org/ftp/python/3.14.7/python-3.14.7-amd64.exe",
+    "installerSha256": "9d9eb2709ef81bf5cd30db3c2096bdbc4ea10087c22e62f27d356b36f6ae9649",
+    "signerSubjectContains": "O=Python Software Foundation",
+    "vendorTreeSha256": "4b4a92d2b1b14044e4704d9e85c44dbc5079bd22e56a243d73e07bcba35c5b60"
+  },
+  "wheelhouse": {
+    "requirementsFile": "requirements-lock.txt",
+    "fileCount": 28,
+    "treeSha256": "ea96c6d968b57e38549e057a785141307adb920cb33bcac132550226345c7393"
+  },
+  "runtimes": {
+    "ghostscript": {
+      "sourcePath": "C:\\Program Files\\gs\\gs10.07.0",
+      "treeSha256": "446dbeee4193b98c5e3d10b61bfc7700a0a60f4615ce3205eaa315c929a7f0f0"
+    },
+    "tesseract": {
+      "sourcePath": "C:\\Program Files\\Tesseract-OCR",
+      "treeSha256": "ff30de3d7155b5ccbac623b68a8bbd9e9a740cd6e2df9736001d6421096dc3ca"
+    },
+    "pngquant": {
+      "sourcePath": "C:\\ProgramData\\chocolatey\\lib\\pngquant\\tools\\pngquant\\pngquant.exe",
+      "sourceSha256": "7aadad6a50aa5c40cfcb20f9478c92f6030360a3424bc262ce383dc1e97fb86a",
+      "treeSha256": "956e53b0b426b48efced91ef04d8e0a75f28ffe1b8ef333720ec5b276166b708"
+    }
+  },
+  "buildTools": {
+    "sourcePython": {
+      "path": "%LOCALAPPDATA%\\Python\\pythoncore-3.14-64\\python.exe",
+      "version": "3.14.4",
+      "sha256": "7ca24f26d6e3f463419ee4f537ddd3acd312c38fe45e678cce08572f26a8bd1a",
+      "signerSubjectContains": "O=Python Software Foundation",
+      "pythonDllSha256": "a07f7d09c3121492bb066535c6d0811df5fbc2090cbca7031a97bb47ce1480c9",
+      "stableDllSha256": "1dd696f02326e32e67b52c25b249b3acce3238176212d16e8fb1a050a1455ae9",
+      "venvTreeSha256": "6072c26e65e5ab45ea4ce2c10d7663fe50488fcda676b59291fbfcca3783003e",
+      "ensurepipTreeSha256": "ef038d08b854459a885cbb599ff88ae9cca47c94e35e97b97461f371e7071a63"
+    },
+    "python": {
+      "path": "C:\\LocalVenvs\\pdfconvertOCR\\Scripts\\python.exe",
+      "sha256": "4b8c3912806b3c1591ba3cb403bff77ad309c3fe5756f87c20b7a6f8f0174262",
+      "pyvenvConfigSha256": "416ba654a2c4c88c4a719fcdd1e87f01d31640360c9a8b20ce717195471e8860",
+      "pipVersion": "26.1.2",
+      "pipTreeSha256": "7597b88dbebb07de6605e8dc636bc97b92fef74e975c60cc15d94209258175cb",
+      "pipMetadataTreeSha256": "5ff16434c53981c8aa360a893c106cb13ad2011ad8c5e75d2707b275d6fb321a",
+      "signerSubjectContains": "O=Python Software Foundation"
+    },
+    "iscc": {
+      "candidatePaths": [
+        "%LOCALAPPDATA%\\Programs\\Inno Setup 6\\ISCC.exe",
+        "%ProgramFiles(x86)%\\Inno Setup 6\\ISCC.exe",
+        "%ProgramFiles%\\Inno Setup 6\\ISCC.exe"
+      ],
+      "signerSubjectContains": "O=Pyrsys B.V."
+    }
+  }
+}
